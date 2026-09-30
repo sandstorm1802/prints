@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0d0d0f">
+<title>Sandstorm's 3D Prints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --panel: #17171b;
+    --orange: #ff7a1a;
+    --orange-soft: #ffa25c;
+    --text: #f3efe9;
+    --muted: #9a958e;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(120% 70% at 50% 0%, rgba(255,122,26,.16), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'Poppins', system-ui, sans-serif;
+    display: grid;
+    place-items: center;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
+    min-height: 100vh;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    padding: 40px 28px 32px;
+    border-radius: 22px;
+    background: var(--panel);
+    border: 1.5px solid rgba(255,122,26,.45);
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    position: relative;
+    overflow: hidden;
+  }
+  /* 3D-printer layer lines */
+  .card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 2px, transparent 2px 5px);
+    pointer-events: none;
+  }
+  .nozzle {
+    width: 64px; height: 64px; margin: 0 auto 22px;
+    display: block;
+  }
+  h1 {
+    font-weight: 800;
+    font-size: clamp(2rem, 9vw, 2.6rem);
+    line-height: 1.05;
+    letter-spacing: -.01em;
+  }
+  .sub {
+    margin-top: 6px;
+    font-weight: 700;
+    letter-spacing: .32em;
+    font-size: .9rem;
+    color: var(--orange);
+    padding-left: .32em;
+  }
+  .rule {
+    width: 56%; height: 3px; margin: 24px auto;
+    background: var(--orange);
+    border-radius: 2px;
+  }
+  .soon {
+    font-weight: 700;
+    font-size: 1.25rem;
+  }
+  p.note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: .98rem;
+    line-height: 1.55;
+  }
+  .bar {
+    margin: 26px auto 0;
+    width: 72%;
+    height: 8px;
+    border-radius: 99px;
+    background: #26262c;
+    overflow: hidden;
+  }
+  .bar span {
+    display: block;
+    height: 100%;
+    width: 40%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--orange), var(--orange-soft));
+    animation: print 2.8s ease-in-out infinite;
+  }
+  @keyframes print {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(250%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bar span { animation: none; width: 60%; }
+  }
+</style>
+</head>
+<body>
+  <main class="card">
+    <svg class="nozzle" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="14" y="6" width="36" height="20" rx="4" fill="none" stroke="#ff7a1a" stroke-width="4"/>
+      <path d="M24 26h16l-5 14h-6z" fill="#ff7a1a"/>
+      <circle cx="32" cy="48" r="3" fill="#ffa25c"/>
+      <rect x="12" y="56" width="40" height="4" rx="2" fill="#ff7a1a"/>
+    </svg>
+    <h1>Sandstorm&rsquo;s</h1>
+    <div class="sub">3D PRINTS</div>
+    <div class="rule"></div>
+    <div class="soon">Coming soon</div>
+    <p class="note">Free 3D prints are warming up.<br>Check back soon to pick yours!</p>
+    <div class="bar" role="presentation"><span></span></div>
+  </main>
+</body>
+</html>
