@@ -27,7 +27,7 @@
   .status-pill.on { background: rgba(60,207,122,.15); color: var(--green); }
   .status-pill.off { background: rgba(255,90,90,.15); color: var(--bad); }
   .tabs { display: flex; gap: 6px; padding-bottom: 10px; }
-  .tab { appearance: none; border: 0; font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer; padding: 8px 14px; border-radius: 99px; background: transparent; color: var(--muted); }
+  .tab { white-space: nowrap; flex: none; appearance: none; border: 0; font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer; padding: 8px 13px; border-radius: 99px; background: transparent; color: var(--muted); }
   .tab.on { background: var(--orange); color: #1a1004; }
   .tab .ct { display: inline-block; min-width: 20px; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: rgba(0,0,0,.25); font-size: .75rem; }
   section { padding-top: 16px; }
@@ -85,6 +85,31 @@
   .col .nm { flex: 1; font-weight: 600; }
   .col.off .nm { color: var(--muted); text-decoration: line-through; }
   input[type=color] { width: 46px; height: 42px; border: 0; background: none; padding: 0; flex: none; }
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+  .tile { background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .tile .v { font-weight: 800; font-size: 2rem; line-height: 1.1; color: var(--text); }
+  .tile .v.hero { color: var(--orange); }
+  .tile .k { color: var(--muted); font-size: .82rem; font-weight: 600; margin-top: 2px; }
+  .blist { display: grid; gap: 10px; }
+  .brow { display: grid; grid-template-columns: minmax(90px, 38%) 1fr auto; gap: 10px; align-items: center; }
+  .brow .bl { font-weight: 600; font-size: .9rem; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .brow .bl span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .brow .track { height: 12px; }
+  .brow .bar { height: 12px; border-radius: 0 4px 4px 0; background: var(--orange); min-width: 3px; }
+  .brow .bar.c { box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
+  .brow .n { font-weight: 700; font-size: .88rem; color: var(--muted); min-width: 24px; text-align: right; }
+  .weeks { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; align-items: end; height: 160px; }
+  .wk { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .wk .col { width: 100%; max-width: 34px; background: var(--orange); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .wk .col.zero { background: #2c2c33; }
+  .wk .lab { color: var(--muted); font-size: .7rem; margin-top: 6px; white-space: nowrap; }
+  .wk .col { margin: 0 auto; }
+  .wk .val { font-size: .75rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .facts { display: grid; gap: 8px; }
+  .fact { display: flex; justify-content: space-between; gap: 12px; font-size: .92rem; }
+  .fact span:first-child { color: var(--muted); }
+  .fact span:last-child { font-weight: 700; text-align: right; }
   .login { max-width: 380px; margin: 12vh auto 0; }
   .muted { color: var(--muted); font-size: .9rem; line-height: 1.5; }
   .msg { font-size: .88rem; font-weight: 600; margin-top: 10px; min-height: 1.2em; }
@@ -131,6 +156,7 @@
       <div class="tabs">
         <button class="tab on" data-tab="queue">Queue <span class="ct" id="activeCt">0</span></button>
         <button class="tab" data-tab="catalog">Catalog</button>
+        <button class="tab" data-tab="stats">Stats</button>
         <button class="tab" data-tab="settings">Settings</button>
       </div>
     </div>
@@ -172,6 +198,10 @@
         </div>
         <div class="msg" id="colorMsg"></div>
       </div>
+    </section>
+
+    <section id="tab-stats" hidden>
+      <div id="statsBody"><div class="spinner"></div></div>
     </section>
 
     <section id="tab-settings" hidden>
@@ -282,7 +312,8 @@ db.auth.getSession().then(({ data }) => boot(data.session));
 // ---------- tabs ----------
 document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  ['queue', 'catalog', 'settings'].forEach(n => $('tab-' + n).hidden = n !== t.dataset.tab);
+  ['queue', 'catalog', 'stats', 'settings'].forEach(n => $('tab-' + n).hidden = n !== t.dataset.tab);
+  if (t.dataset.tab === 'stats') loadStats();
 });
 document.querySelectorAll('.filter').forEach(f => f.onclick = () => {
   filter = f.dataset.f;
@@ -471,6 +502,84 @@ async function uploadPhoto(it, file) {
     if (error) throw error;
     it.photo_url = url; renderCatalog(); toast('Photo saved');
   } catch (e) { toast('Photo upload failed: ' + ((e && e.message) || 'unknown error')); }
+}
+
+// ---------- stats ----------
+async function loadStats() {
+  const { data, error } = await db.from('requests')
+    .select('created_at,updated_at,status,item_name,color,source')
+    .order('created_at', { ascending: false }).limit(5000);
+  if (error) { $('statsBody').innerHTML = '<div class="empty">Couldn’t load stats.</div>'; return; }
+  renderStats(data || []);
+}
+function countBy(rows, key) {
+  const m = new Map();
+  rows.forEach(r => m.set(r[key], (m.get(r[key]) || 0) + 1));
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+function barList(pairs, colorOf) {
+  const max = Math.max(1, ...pairs.map(p => p[1]));
+  return `<div class="blist">${pairs.map(([label, n]) => `
+    <div class="brow" title="${esc(label)}: ${n}">
+      <div class="bl">${colorOf ? `<span class="sw" style="background:${esc(colorOf(label))}"></span>` : ''}<span class="t">${esc(label)}</span></div>
+      <div class="track"><div class="bar${colorOf ? ' c' : ''}" style="width:${(n / max * 100).toFixed(1)}%;${colorOf ? `background:${esc(colorOf(label))}` : ''}"></div></div>
+      <div class="n">${n}</div>
+    </div>`).join('')}</div>`;
+}
+function renderStats(all) {
+  const rows = all.filter(r => r.status !== 'cancelled');
+  if (!rows.length) { $('statsBody').innerHTML = '<div class="empty">No requests yet. Stats will show up here.</div>'; return; }
+  const given = rows.filter(r => r.status === 'picked_up');
+  const inProg = rows.filter(r => r.status === 'requested' || r.status === 'printing').length;
+  const ready = rows.filter(r => r.status === 'ready').length;
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const thisMonth = rows.filter(r => new Date(r.created_at) >= monthStart).length;
+
+  // last 8 weeks (weeks start Sunday)
+  const wk0 = new Date(); wk0.setHours(0, 0, 0, 0); wk0.setDate(wk0.getDate() - wk0.getDay());
+  const weeks = [...Array(8)].map((_, i) => { const d = new Date(wk0); d.setDate(d.getDate() - 7 * (7 - i)); return { start: d, n: 0 }; });
+  rows.forEach(r => {
+    const t = new Date(r.created_at);
+    for (let i = 7; i >= 0; i--) if (t >= weeks[i].start) { weeks[i].n++; break; }
+  });
+  const wmax = Math.max(1, ...weeks.map(w => w.n));
+  const peak = weeks.reduce((a, w, i) => w.n > weeks[a].n ? i : a, 0);
+
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const byDay = [0, 0, 0, 0, 0, 0, 0]; rows.forEach(r => byDay[new Date(r.created_at).getDay()]++);
+  const busiest = days[byDay.indexOf(Math.max(...byDay))];
+  const kids = rows.filter(r => r.source === 'kids').length;
+  const turn = given.map(r => (new Date(r.updated_at) - new Date(r.created_at)) / 864e5).sort((a, b) => a - b);
+  const median = turn.length ? turn[Math.floor(turn.length / 2)] : null;
+  const turnTxt = median === null ? '—' : median < 1 ? 'under a day' : `about ${Math.round(median)} day${Math.round(median) === 1 ? '' : 's'}`;
+  const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const short = d => (d.getMonth() + 1) + '/' + d.getDate();
+
+  $('statsBody').innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="v hero">${given.length}</div><div class="k">Prints given away</div></div>
+      <div class="tile"><div class="v">${rows.length}</div><div class="k">Total requests</div></div>
+      <div class="tile"><div class="v">${inProg}</div><div class="k">To print</div></div>
+      <div class="tile"><div class="v">${ready}</div><div class="k">Waiting for pickup</div></div>
+    </div>
+    <div class="card">
+      <h3>Requests per week</h3>
+      <div class="weeks">${weeks.map((w, i) => `
+        <div class="wk" title="Week of ${fmt(w.start)}: ${w.n} request${w.n === 1 ? '' : 's'}">
+          ${(i === peak && w.n) || i === 7 ? `<div class="val">${w.n}</div>` : ''}
+          <div class="col${w.n ? '' : ' zero'}" style="height:${w.n ? (w.n / wmax * 78).toFixed(1) : 1.5}%"></div>
+          <div class="lab">${i === 7 ? 'Now' : short(w.start)}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="card"><h3>Most popular items</h3>${barList(countBy(rows, 'item_name').slice(0, 8))}</div>
+    <div class="card"><h3>Favorite colors</h3>${barList(countBy(rows, 'color').slice(0, 8), hexFor)}</div>
+    <div class="card"><h3>Fun facts</h3><div class="facts">
+      <div class="fact"><span>This month</span><span>${thisMonth} request${thisMonth === 1 ? '' : 's'}</span></div>
+      <div class="fact"><span>Busiest day</span><span>${busiest}</span></div>
+      <div class="fact"><span>Kids&rsquo; picks</span><span>${kids} of ${rows.length}</span></div>
+      <div class="fact"><span>Typical time to pickup</span><span>${turnTxt}</span></div>
+    </div></div>`;
 }
 
 // ---------- settings ----------
