@@ -253,7 +253,7 @@ async function start() {
   // items in hidden holiday sections aren't offered
   S.items = (it.data || []).filter(i => !i.section || S.sections.some(x => x.name === i.section));
   S.sections = S.sections.filter(x => S.items.some(i => i.section === x.name));
-  if (!S.state.accepting) return message('Taking a break', S.state.closed_message);
+  if (!S.state.accepting) return message(S.state.full ? 'All booked up!' : 'Taking a break', S.state.closed_message);
   if (deviceCount() >= DEVICE_DAILY_MAX) return message('That’s a lot of prints!', 'You’ve made a few picks today. Come back another day for more.');
   if (!S.items.length || !S.colors.length) return message('Catalog coming soon', 'New prints are being added. Check back soon!');
   if (S.state.code_required && !S.code) return showCode();
@@ -333,6 +333,7 @@ async function submit() {
   if (error) {
     const m = (error.message || '');
     if (m.includes('bad_code')) { S.code = ''; return showCode('That code didn’t match. Check the card by the sign.'); }
+    if (m.includes('full')) return start();
     if (m.includes('closed')) return message('Taking a break', S.state.closed_message);
     if (m.includes('busy')) return message('Lots of requests right now!', 'The printer is booked up for today. Please try again tomorrow.');
     if (m.includes('bad_item') || m.includes('bad_color')) { S.item = null; S.color = null; return start(); }

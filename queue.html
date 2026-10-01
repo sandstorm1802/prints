@@ -25,6 +25,7 @@
   .brand span { color: var(--orange); }
   .status-pill { font-size: .78rem; font-weight: 700; padding: 4px 10px; border-radius: 99px; }
   .status-pill.on { background: rgba(60,207,122,.15); color: var(--green); }
+  .status-pill.full { background: rgba(255,122,26,.18); color: var(--orange-soft); }
   .status-pill.off { background: rgba(255,90,90,.15); color: var(--bad); }
   .tabs { display: flex; gap: 6px; padding-bottom: 10px; }
   .tab { white-space: nowrap; flex: none; appearance: none; border: 0; font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer; padding: 8px 13px; border-radius: 99px; background: transparent; color: var(--muted); }
@@ -243,6 +244,13 @@
         <textarea id="setNote" maxlength="200"></textarea>
         <label for="setLimit">Most requests per day</label>
         <input type="number" id="setLimit" min="1" max="500">
+        <div id="capFields" hidden>
+          <label for="setMaxOpen">Most waiting at once</label>
+          <input type="number" id="setMaxOpen" min="1" max="200">
+          <p class="muted" style="margin-top:6px;font-size:.82rem">When this many prints are waiting or printing, the request page says it&rsquo;s booked up. It reopens on its own as soon as you finish one.</p>
+          <label for="setFull">Message when booked up</label>
+          <textarea id="setFull" maxlength="200"></textarea>
+        </div>
       </div>
       <button class="btn" id="saveSettings" style="width:100%">Save settings</button>
       <div class="msg" id="setMsg"></div>
@@ -360,6 +368,7 @@ async function loadRequests() {
   renderQueue();
 }
 function renderQueue() {
+  renderPill();
   const active = requests.filter(r => r.status === 'requested' || r.status === 'printing');
   $('activeCt').textContent = active.length;
   let list = requests;
@@ -661,12 +670,21 @@ async function loadSettings() {
   $('setCode').value = settings.access_code || '';
   $('setNote').value = settings.pickup_note;
   $('setLimit').value = settings.daily_limit;
+  if ('max_open' in settings) {
+    $('capFields').hidden = false;
+    $('setMaxOpen').value = settings.max_open;
+    $('setFull').value = settings.full_message || '';
+  }
   renderPill();
 }
 function renderPill() {
-  const on = settings && settings.accepting;
-  $('openPill').textContent = on ? 'Open' : 'Paused';
-  $('openPill').className = 'status-pill ' + (on ? 'on' : 'off');
+  if (!settings) return;
+  const waiting = requests.filter(r => r.status === 'requested' || r.status === 'printing').length;
+  const cap = settings.max_open;
+  const full = settings.accepting && cap && waiting >= cap;
+  const on = settings.accepting && !full;
+  $('openPill').textContent = !settings.accepting ? 'Paused' : full ? `Full ${waiting}/${cap}` : cap ? `Open ${waiting}/${cap}` : 'Open';
+  $('openPill').className = 'status-pill ' + (on ? 'on' : full ? 'full' : 'off');
 }
 $('setAccepting').onchange = async e => {
   const { error } = await db.from('settings').update({ accepting: e.target.checked }).eq('id', 1);
@@ -683,6 +701,10 @@ $('saveSettings').onclick = async () => {
     pickup_note: $('setNote').value.trim() || 'Pick up at the front desk.',
     daily_limit: Math.max(1, Math.min(500, parseInt($('setLimit').value, 10) || 25)),
   };
+  if ('max_open' in settings) {
+    patch.max_open = Math.max(1, Math.min(200, parseInt($('setMaxOpen').value, 10) || 10));
+    patch.full_message = $('setFull').value.trim() || 'All booked up right now! Check back in a few days.';
+  }
   const { error } = await db.from('settings').update(patch).eq('id', 1);
   if (error) return flash('setMsg', 'Couldn’t save settings.', false);
   Object.assign(settings, patch); $('setCode').value = code; renderPill();
