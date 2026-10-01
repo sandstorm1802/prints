@@ -89,6 +89,14 @@
   .p-ready { background: #3ccf7a; color: #062b14; }
   .p-picked_up, .p-cancelled { background: #1d1d22; color: #6f6b65; }
   .mrow.ready { margin: 0 -10px; padding: 12px 10px; border-radius: 12px; background: rgba(60,207,122,.1); border-top-color: transparent; }
+  .busy { display: flex; align-items: center; gap: 10px; margin-top: 12px; padding: 9px 12px; border-radius: 12px; background: rgba(60,207,122,.1); color: #bfeccf; font-size: .9rem; line-height: 1.35; }
+  .busy strong { color: #3ccf7a; }
+  .busy .dot { width: 10px; height: 10px; border-radius: 50%; background: #3ccf7a; flex: none; box-shadow: 0 0 0 4px rgba(60,207,122,.18); }
+  .busy.warm { background: rgba(255,122,26,.12); color: #ffd2a8; }
+  .busy.warm strong { color: var(--orange); }
+  .busy.warm .dot { background: var(--orange); box-shadow: 0 0 0 4px rgba(255,122,26,.2); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(255,122,26,.05); } }
+  @media (prefers-reduced-motion: reduce) { .busy.warm .dot { animation: none; } }
   .stabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .stab { appearance: none; font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; white-space: nowrap; padding: 8px 14px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--muted); }
   .stab.on { border-color: var(--orange); background: rgba(255,122,26,.14); color: var(--text); }
@@ -275,6 +283,25 @@ function showCode(err) {
   inp.onkeydown = e => { if (e.key === 'Enter') go(); };
 }
 
+function waitText(days) {
+  if (days == null) return '';
+  if (days < 2) return 'Prints ready in a day or two';
+  if (days < 4) return 'Prints ready in a few days';
+  if (days < 10) return 'Prints ready in about a week';
+  if (days < 18) return 'Prints ready in about 2 weeks';
+  return `Prints ready in about ${Math.round(days / 7)} weeks`;
+}
+function busyLine() {
+  const st = S.state;
+  if (!st || typeof st.spots_left !== 'number') return '';
+  const wait = waitText(st.typical_days);
+  if (st.spots_left <= 3) {
+    const n = st.spots_left;
+    return `<div class="busy warm"><span class="dot"></span><span><strong>Getting busy.</strong> ${n} spot${n === 1 ? '' : 's'} left${wait ? ' &middot; ' + esc(wait.toLowerCase()) : ''}</span></div>`;
+  }
+  return `<div class="busy"><span class="dot"></span><span><strong>Plenty of room.</strong>${wait ? ' ' + esc(wait) + '.' : ''}</span></div>`;
+}
+
 function showCatalog() {
   if (S.tab && !S.sections.some(x => x.name === S.tab)) S.tab = '';
   const everyday = S.items.filter(i => !i.section);
@@ -289,6 +316,7 @@ function showCatalog() {
     <div class="card">
       <div class="step-title">Pick a free print</div>
       <p class="hint">Tap the one you want.</p>
+      ${busyLine()}
       ${tabs}
       ${sec ? `<div class="early">${esc(sec.emoji || '')} Request early! ${sec.ready_by ? `These will be ready by <strong>${esc(dueText(sec.ready_by))}</strong>.` : 'Holiday prints are made ahead of time.'}</div>` : ''}
       <div class="grid">${shown.map(it => `
