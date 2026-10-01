@@ -105,11 +105,14 @@
 <div id="loginView" class="wrap" hidden>
   <div class="login">
     <div class="brand" style="font-size:1.6rem">Sandstorm&rsquo;s <span>Queue</span></div>
-    <p class="muted" style="margin:8px 0 18px">Enter your email and we&rsquo;ll send you a sign-in link.</p>
+    <p class="muted" style="margin:8px 0 18px">Sign in to manage requests.</p>
     <div class="card">
       <label for="email">Email</label>
-      <input type="email" id="email" autocomplete="email" inputmode="email">
-      <button class="btn" id="sendLink" style="width:100%;margin-top:14px">Send sign-in link</button>
+      <input type="email" id="email" autocomplete="username" inputmode="email">
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password">
+      <button class="btn" id="signIn" style="width:100%;margin-top:14px">Sign in</button>
+      <button class="btn ghost" id="sendLink" style="width:100%;margin-top:8px">Email me a sign-in link instead</button>
       <div class="msg" id="loginMsg"></div>
     </div>
   </div>
@@ -232,18 +235,35 @@ function ago(ts) {
 const hexFor = name => (colors.find(c => c.name === name) || {}).hex || '#888888';
 
 // ---------- auth ----------
+function authError(error) {
+  const m = ((error && (error.message || error.code)) || '').toLowerCase();
+  if (m.includes('rate') || error.status === 429) return 'Too many emails sent for now. Use your password, or try the link again in an hour.';
+  if (m.includes('invalid login') || m.includes('invalid_credentials')) return 'Email or password didn’t match.';
+  if (m.includes('signup') || m.includes('not found')) return 'No account with that email.';
+  return 'Couldn’t sign in: ' + (error.message || 'unknown error');
+}
+$('signIn').onclick = async () => {
+  const email = $('email').value.trim(), password = $('password').value;
+  if (!email || !password) return flash('loginMsg', 'Enter your email and password.', false);
+  $('signIn').disabled = true;
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  $('signIn').disabled = false;
+  if (error) return flash('loginMsg', authError(error), false);
+  boot(data.session);
+};
 $('sendLink').onclick = async () => {
   const email = $('email').value.trim();
-  if (!email) return;
+  if (!email) return flash('loginMsg', 'Enter your email first.', false);
   $('sendLink').disabled = true;
   const { error } = await db.auth.signInWithOtp({
     email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname },
   });
   $('sendLink').disabled = false;
-  if (error) flash('loginMsg', 'Couldn’t send a link to that address.', false);
+  if (error) flash('loginMsg', authError(error), false);
   else flash('loginMsg', 'Check your email for the sign-in link.');
 };
-$('email').onkeydown = e => { if (e.key === 'Enter') $('sendLink').click(); };
+$('email').onkeydown = e => { if (e.key === 'Enter') $('password').focus(); };
+$('password').onkeydown = e => { if (e.key === 'Enter') $('signIn').click(); };
 $('signOut').onclick = $('deniedOut').onclick = async () => { await db.auth.signOut(); location.reload(); };
 
 async function boot(session) {
