@@ -451,13 +451,13 @@ async function uploadPhoto(it, file) {
   try {
     const blob = await shrink(file);
     const path = `item-${it.id}-${Date.now()}.jpg`;
-    const up = await db.storage.from('catalog').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    const up = await db.storage.from('catalog').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
     if (up.error) throw up.error;
     const url = db.storage.from('catalog').getPublicUrl(path).data.publicUrl;
     const { error } = await db.from('catalog_items').update({ photo_url: url }).eq('id', it.id);
     if (error) throw error;
     it.photo_url = url; renderCatalog(); toast('Photo saved');
-  } catch (e) { toast('Photo upload failed'); }
+  } catch (e) { toast('Photo upload failed: ' + ((e && e.message) || 'unknown error')); }
 }
 
 // ---------- settings ----------
