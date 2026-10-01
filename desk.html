@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0d0d0f">
+<title>Front Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f; --panel: #17171b; --panel-2: #202026; --line: #2c2c33;
+    --orange: #ff7a1a; --text: #f3efe9; --muted: #9a958e; --green: #3ccf7a; --bad: #ff5a5a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: 'Poppins', system-ui, sans-serif; min-height: 100vh; padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+  .top { position: sticky; top: 0; z-index: 5; background: rgba(13,13,15,.94); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 12px; }
+  .brand { font-weight: 800; font-size: 1.2rem; }
+  .brand span { color: var(--orange); }
+  .find { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; }
+  .find .hash { font-weight: 800; font-size: 1.6rem; color: var(--orange); }
+  .find input { flex: 1; min-width: 0; width: 100%; font: inherit; font-size: 1.4rem; font-weight: 700; padding: 10px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text); letter-spacing: .05em; }
+  .find input:focus { outline: none; border-color: var(--orange); }
+  h1 { font-size: .8rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 18px 0 10px; }
+  .card { display: flex; align-items: center; gap: 16px; background: var(--panel); border: 1.5px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 12px; transition: opacity .3s, transform .3s; }
+  .card.gone { opacity: 0; transform: translateX(40px); }
+  .card .no { font-weight: 800; font-size: 2.3rem; color: var(--orange); line-height: 1; min-width: 96px; }
+  .card .info { flex: 1; min-width: 0; }
+  .card .what { font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .card .what span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .card .when { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+  .sw { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); flex: none; }
+  .btn { appearance: none; border: 0; font: inherit; font-weight: 700; cursor: pointer; padding: 14px 18px; border-radius: 14px; background: var(--green); color: #062b14; font-size: 1rem; white-space: nowrap; }
+  .btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--text); padding: 8px 14px; font-size: .85rem; }
+  .btn.orange { background: var(--orange); color: #1a1004; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .empty { text-align: center; color: var(--muted); padding: 50px 10px; }
+  .empty .big { font-size: 2.4rem; margin-bottom: 6px; }
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13,13,15,.94); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); text-align: center; color: var(--muted); font-size: .92rem; }
+  .foot strong { color: var(--text); }
+  .toast { position: fixed; left: 50%; bottom: calc(70px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 14px; background: var(--text); color: #121214; font-weight: 700; padding: 10px 10px 10px 18px; border-radius: 99px; box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 20; white-space: nowrap; }
+  .toast button { appearance: none; border: 0; font: inherit; font-weight: 800; cursor: pointer; background: #121214; color: var(--orange); padding: 8px 14px; border-radius: 99px; }
+  .login { max-width: 380px; margin: 12vh auto 0; }
+  .login .card { display: block; }
+  label { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin: 10px 0 5px; }
+  input[type=email], input[type=password] { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text); font: inherit; font-size: 1rem; }
+  input:focus { outline: none; border-color: var(--orange); }
+  .muted { color: var(--muted); font-size: .9rem; line-height: 1.5; }
+  .msg { font-size: .88rem; font-weight: 600; margin-top: 10px; min-height: 1.2em; }
+  .msg.ok { color: var(--green); } .msg.bad { color: var(--bad); }
+  .spinner { width: 30px; height: 30px; margin: 50px auto; border-radius: 50%; border: 3px solid #2c2c33; border-top-color: var(--orange); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [hidden] { display: none !important; }
+  @media (max-width: 460px) {
+    .card { flex-wrap: wrap; }
+    .card .no { min-width: 0; font-size: 2rem; }
+    .card .btn { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap" hidden>
+  <div class="login">
+    <div class="brand" style="font-size:1.6rem">Sandstorm&rsquo;s <span>Front Desk</span></div>
+    <p class="muted" style="margin:8px 0 18px">Sign in to hand out finished prints.</p>
+    <div class="card">
+      <label for="email">Email</label>
+      <input type="email" id="email" autocomplete="username" inputmode="email">
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password">
+      <button class="btn orange" id="signIn" style="width:100%;margin-top:14px">Sign in</button>
+      <button class="btn ghost" id="sendLink" style="width:100%;margin-top:8px">Email me a sign-in link instead</button>
+      <div class="msg" id="loginMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="deniedView" class="wrap" hidden>
+  <div class="login">
+    <div class="brand" style="font-size:1.6rem">Not allowed</div>
+    <p class="muted" style="margin:8px 0 18px">This account doesn&rsquo;t have front-desk access.</p>
+    <button class="btn ghost" id="deniedOut">Sign out</button>
+  </div>
+</div>
+
+<div id="appView" hidden>
+  <div class="top">
+    <div class="wrap">
+      <div class="bar">
+        <div class="brand">Sandstorm&rsquo;s <span>Front Desk</span></div>
+        <button class="btn ghost" id="signOut">Sign out</button>
+      </div>
+      <div class="find">
+        <span class="hash">#</span>
+        <input id="find" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="Find a number" autocomplete="off">
+      </div>
+    </div>
+  </div>
+  <div class="wrap">
+    <h1>Ready for pickup</h1>
+    <div id="list"><div class="spinner"></div></div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastText"></span><button id="undo">Undo</button></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xmsfnoloijgvtlfvzmyb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-BiThUOZZrxtoWV8T4eb6Q_1mOnfGWp';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => '#' + String(n).padStart(3, '0');
+let requests = [], colors = {}, booted = false, undoId = null, toastTimer = null;
+
+function show(v) { ['loginView', 'appView', 'deniedView'].forEach(x => $(x).hidden = x !== v); }
+function flash(text, ok) { const el = $('loginMsg'); el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'bad'); }
+function ago(ts) {
+  const m = Math.round((Date.now() - new Date(ts)) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60); if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.round(h / 24); return d + (d === 1 ? ' day ago' : ' days ago');
+}
+
+// ---------- sign in ----------
+function authError(error) {
+  const m = ((error && (error.message || error.code)) || '').toLowerCase();
+  if (m.includes('rate') || error.status === 429) return 'Too many emails sent for now. Use your password, or try the link again later.';
+  if (m.includes('invalid login') || m.includes('invalid_credentials')) return 'Email or password didn’t match.';
+  return 'Couldn’t sign in: ' + (error.message || 'unknown error');
+}
+$('signIn').onclick = async () => {
+  const email = $('email').value.trim(), password = $('password').value;
+  if (!email || !password) return flash('Enter your email and password.', false);
+  $('signIn').disabled = true;
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  $('signIn').disabled = false;
+  if (error) return flash(authError(error), false);
+  boot(data.session);
+};
+$('sendLink').onclick = async () => {
+  const email = $('email').value.trim();
+  if (!email) return flash('Enter your email first.', false);
+  $('sendLink').disabled = true;
+  const { error } = await db.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname } });
+  $('sendLink').disabled = false;
+  if (error) flash(authError(error), false); else flash('Check your email for the sign-in link.', true);
+};
+$('email').onkeydown = e => { if (e.key === 'Enter') $('password').focus(); };
+$('password').onkeydown = e => { if (e.key === 'Enter') $('signIn').click(); };
+$('signOut').onclick = $('deniedOut').onclick = async () => { await db.auth.signOut(); location.reload(); };
+
+async function boot(session) {
+  if (!session) { show('loginView'); return; }
+  if (booted) return;
+  booted = true;
+  const { data: ok } = await db.rpc('is_staff');
+  if (!ok) { show('deniedView'); return; }
+  show('appView');
+  const co = await db.from('colors').select('name,hex');
+  (co.data || []).forEach(c => colors[c.name] = c.hex);
+  await load();
+  db.channel('desk-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, p => {
+      if (p.eventType === 'DELETE') requests = requests.filter(r => r.id !== p.old.id);
+      else {
+        const i = requests.findIndex(r => r.id === p.new.id);
+        if (i >= 0) requests[i] = p.new; else requests.push(p.new);
+      }
+      render();
+    })
+    .subscribe();
+}
+db.auth.onAuthStateChange((_e, s) => { if (s) boot(s); });
+db.auth.getSession().then(({ data }) => boot(data.session));
+
+// ---------- list ----------
+async function load() {
+  const { data, error } = await db.from('requests')
+    .select('id,pickup_no,item_name,color,status,updated_at')
+    .order('updated_at', { ascending: true }).limit(500);
+  if (error) { $('list').innerHTML = '<div class="empty">Couldn’t load. Pull down to refresh.</div>'; return; }
+  requests = data || [];
+  render();
+}
+function render() {
+  const q = $('find').value.replace(/\D/g, '');
+  let ready = requests.filter(r => r.status === 'ready').sort((a, b) => a.pickup_no - b.pickup_no);
+  if (q) ready = ready.filter(r => String(r.pickup_no).padStart(3, '0').includes(q))
+    .sort((a, b) => (b.pickup_no === +q) - (a.pickup_no === +q));
+  const coming = requests.filter(r => r.status === 'requested' || r.status === 'printing').length;
+  $('foot').innerHTML = coming ? `<strong>${coming}</strong> more being printed` : 'Nothing else in the works right now';
+  if (!ready.length) {
+    $('list').innerHTML = q
+      ? `<div class="empty"><div class="big">&#128269;</div>No ready print with number #${esc(q.padStart(3, '0'))}.<br>It may still be printing.</div>`
+      : '<div class="empty"><div class="big">&#128230;</div>Nothing waiting for pickup right now.</div>';
+    return;
+  }
+  $('list').innerHTML = ready.map(r => `
+    <div class="card" data-id="${r.id}">
+      <div class="no">${pad(r.pickup_no)}</div>
+      <div class="info">
+        <div class="what"><span class="sw" style="background:${esc(colors[r.color] || '#888')}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>
+        <div class="when">Ready ${ago(r.updated_at)}</div>
+      </div>
+      <button class="btn">Picked up</button>
+    </div>`).join('');
+  $('list').querySelectorAll('.card').forEach(card => card.querySelector('.btn').onclick = () => pickUp(+card.dataset.id, card));
+}
+$('find').oninput = render;
+
+async function pickUp(id, card) {
+  const btn = card.querySelector('.btn');
+  btn.disabled = true;
+  const { error } = await db.rpc('desk_set_picked_up', { p_id: id, p_picked: true });
+  if (error) { btn.disabled = false; return showToast('Couldn’t update. Try again.', null); }
+  const r = requests.find(x => x.id === id);
+  card.classList.add('gone');
+  setTimeout(() => { if (r) { r.status = 'picked_up'; r.updated_at = new Date().toISOString(); } $('find').value = ''; render(); }, 300);
+  showToast(pad(r ? r.pickup_no : '') + ' picked up', id);
+}
+function showToast(text, id) {
+  $('toastText').textContent = text;
+  $('undo').hidden = !id;
+  undoId = id;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; undoId = null; }, 6000);
+}
+$('undo').onclick = async () => {
+  if (!undoId) return;
+  const id = undoId; undoId = null;
+  $('toast').hidden = true;
+  const { error } = await db.rpc('desk_set_picked_up', { p_id: id, p_picked: false });
+  if (error) return showToast('Couldn’t undo.', null);
+  const r = requests.find(x => x.id === id);
+  if (r) r.status = 'ready';
+  render();
+};
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && booted && !$('appView').hidden) load(); });
+setInterval(() => { if (!document.hidden && !$('appView').hidden) render(); }, 60000);
+</script>
+</body>
+</html>

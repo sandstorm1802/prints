@@ -301,7 +301,11 @@ async function boot(session) {
   if (booted) return;
   booted = true;
   const { data: ok } = await db.rpc('is_admin');
-  if (!ok) { show('deniedView'); return; }
+  if (!ok) {
+    const { data: staff } = await db.rpc('is_staff');
+    if (staff) { location.replace('desk.html'); return; }
+    show('deniedView'); return;
+  }
   show('appView');
   await Promise.all([loadSettings(), loadCatalog(), loadRequests()]);
   subscribe();
