@@ -52,6 +52,8 @@
     border-radius: 99px; border: 1.5px solid var(--line); background: var(--panel-2); font-weight: 600;
   }
   .chip .sw { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); }
+  .chip .ord { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 99px; background: var(--orange); color: #1a1004; margin-left: 2px; }
+  .chip.dim { opacity: .45; }
   .chip.sel { border-color: var(--orange); background: rgba(255,122,26,.14); }
   .btn {
     appearance: none; border: 0; font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
@@ -329,27 +331,40 @@ function showCatalog() {
     </div>`;
   app.querySelectorAll('.item').forEach(b => b.onclick = () => {
     S.item = S.items.find(i => i.id === +b.dataset.id);
+    S.color = [];
     showColor();
   });
   app.querySelectorAll('.stab').forEach(b => b.onclick = () => { S.tab = b.dataset.t; showCatalog(); });
 }
 
+const MAX_COLORS = 2;
+const colorText = () => (S.color || []).join(' + ');
 function showColor(err) {
+  if (!Array.isArray(S.color)) S.color = [];
+  const pickedHint = () => !S.color.length ? 'Pick 1 or 2 colors.'
+    : S.color.length === 1 ? `Main color: ${esc(S.color[0])}. Add an accent color, or request it now.`
+    : `${esc(S.color[0])} with ${esc(S.color[1])} accents. Tap a color to remove it.`;
   app.innerHTML = `
     <div class="card">
       <button class="back" id="back">&larr; Back</button>
-      <div class="picked">${thumb(S.item)}<div><div class="step-title">${esc(S.item.name)}</div><p class="hint">Now pick a color.</p></div></div>
-      <div class="colors">${S.colors.map(c => `
-        <button class="chip${S.color === c.name ? ' sel' : ''}" data-c="${esc(c.name)}"><span class="sw" style="background:${esc(c.hex)}"></span>${esc(c.name)}</button>`).join('')}
+      <div class="picked">${thumb(S.item)}<div><div class="step-title">${esc(S.item.name)}</div><p class="hint">Now pick your colors.</p></div></div>
+      <div class="colors">${S.colors.map(c => {
+        const i = S.color.indexOf(c.name);
+        return `<button class="chip${i >= 0 ? ' sel' : ''}${i < 0 && S.color.length >= MAX_COLORS ? ' dim' : ''}" data-c="${esc(c.name)}"><span class="sw" style="background:${esc(c.hex)}"></span>${esc(c.name)}${i >= 0 ? `<span class="ord">${i === 0 ? 'Main' : 'Accent'}</span>` : ''}</button>`;
+      }).join('')}
       </div>
+      <p class="hint" id="pickHint" style="margin-top:12px">${pickedHint()}</p>
       <div class="err" id="err">${esc(err || '')}</div>
-      <button class="btn" id="send" ${S.color ? '' : 'disabled'}>Request it</button>
+      <button class="btn" id="send" ${S.color.length ? '' : 'disabled'}>Request it</button>
     </div>`;
-  document.getElementById('back').onclick = () => { S.color = null; showCatalog(); };
+  document.getElementById('back').onclick = () => { S.color = []; showCatalog(); };
   app.querySelectorAll('.chip').forEach(b => b.onclick = () => {
-    S.color = b.dataset.c;
-    app.querySelectorAll('.chip').forEach(x => x.classList.toggle('sel', x === b));
-    document.getElementById('send').disabled = false;
+    const name = b.dataset.c;
+    const i = S.color.indexOf(name);
+    if (i >= 0) S.color.splice(i, 1);
+    else if (S.color.length < MAX_COLORS) S.color.push(name);
+    else { document.getElementById('err').textContent = 'Up to 2 colors. Tap one to remove it first.'; return; }
+    showColor();
   });
   document.getElementById('send').onclick = submit;
 }
@@ -358,7 +373,7 @@ async function submit() {
   const btn = document.getElementById('send');
   btn.disabled = true; btn.textContent = 'Sending…';
   const { data, error } = await db.rpc('submit_request', {
-    p_item: S.item.id, p_color: S.color, p_code: S.code || null, p_source: SOURCE,
+    p_item: S.item.id, p_color: colorText(), p_code: S.code || null, p_source: SOURCE,
   });
   if (error) {
     const m = (error.message || '');
@@ -366,7 +381,8 @@ async function submit() {
     if (m.includes('full')) return start();
     if (m.includes('closed')) return message('Taking a break', S.state.closed_message);
     if (m.includes('busy')) return message('Lots of requests right now!', 'The printer is booked up for today. Please try again tomorrow.');
-    if (m.includes('bad_item') || m.includes('bad_color')) { S.item = null; S.color = null; return start(); }
+    if (m.includes('bad_color') && S.color.length > 1) return showColor('Two-color prints aren\u2019t available right now. Please pick one color.');
+    if (m.includes('bad_item') || m.includes('bad_color')) { S.item = null; S.color = []; return start(); }
     return showColor('Couldn’t send that. Check your connection and try again.');
   }
   bumpDevice();
@@ -381,14 +397,14 @@ function showDone(n, claim) {
     <div class="card done">
       <div class="lbl">Your pickup number</div>
       <div class="num">#${num}</div>
-      <div class="what">${esc(S.item.name)} &middot; ${esc(S.color)}</div>
+      <div class="what">${esc(S.item.name)} &middot; ${esc(colorText())}</div>
       ${sectionOf(S.item) && sectionOf(S.item).ready_by ? `<div class="early" style="margin-top:14px">${esc(sectionOf(S.item).emoji || '')} Ready by ${esc(dueText(sectionOf(S.item).ready_by))}</div>` : ''}
       <p class="hint note">${esc(S.state.pickup_note)}</p>
       <div class="shot">This phone will remember it. Open this page any time to see when it&rsquo;s ready.</div>
       ${claim ? '<button class="btn ghost" id="save">Save a link to check from another device</button>' : ''}
       <button class="btn" id="again">Done</button>
     </div>`;
-  document.getElementById('again').onclick = () => { S.item = null; S.color = null; start(); };
+  document.getElementById('again').onclick = () => { S.item = null; S.color = []; start(); };
   const save = document.getElementById('save');
   if (save) save.onclick = async () => {
     const url = linkFor(claim);

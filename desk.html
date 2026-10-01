@@ -40,6 +40,8 @@
   .btn.orange { background: var(--orange); color: #1a1004; }
   .btn:disabled { opacity: .45; cursor: default; }
   .empty { text-align: center; color: var(--muted); padding: 50px 10px; }
+  .sws { display: inline-flex; flex: none; }
+  .sws .sw + .sw { margin-left: -5px; box-shadow: 0 0 0 2px var(--panel); }
   .empty.small { padding: 22px 10px; }
   .row { display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
   .row .no.sm { font-weight: 800; font-size: 1.35rem; color: var(--muted); min-width: 64px; }
@@ -207,7 +209,9 @@ const STATUS = {
   ready: ['Ready', 'p-ready'], picked_up: ['Picked up', 'p-done'], cancelled: ['Cancelled', 'p-done'],
 };
 function card(r) {
-  const what = `<div class="what"><span class="sw" style="background:${esc(colors[r.color] || '#888')}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>`;
+  const sws = String(r.color || '').split('+').map(x => x.trim()).filter(Boolean)
+    .map(n => `<span class="sw" style="background:${esc(colors[n] || '#888')}"></span>`).join('');
+  const what = `<div class="what"><span class="sws">${sws}</span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>`;
   if (r.status === 'ready') return `
     <div class="card" data-id="${r.id}">
       <div class="no">${pad(r.pickup_no)}</div>

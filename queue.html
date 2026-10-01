@@ -47,6 +47,8 @@
   .b-printing { background: rgba(91,157,255,.15); color: var(--blue); }
   .b-ready { background: rgba(60,207,122,.15); color: var(--green); }
   .b-picked_up, .b-cancelled { background: #26262c; color: var(--muted); }
+  .sws { display: inline-flex; flex: none; }
+  .sws .sw + .sw { margin-left: -5px; box-shadow: 0 0 0 2px var(--panel); }
   .b-due { background: rgba(255,122,26,.15); color: var(--orange-soft); }
   .it > div:nth-child(2) { min-width: 0; }
   .secsel { width: 100%; margin-top: 6px; font: inherit; font-size: .8rem; font-weight: 600; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text); max-width: 100%; }
@@ -297,6 +299,8 @@ function ago(ts) {
   const d = Math.round(h / 24); return d + 'd ago';
 }
 const hexFor = name => (colors.find(c => c.name === name) || {}).hex || '#888888';
+const splitColors = c => String(c || '').split('+').map(x => x.trim()).filter(Boolean);
+const swatches = c => splitColors(c).map(n => `<span class="sw" style="background:${esc(hexFor(n))}"></span>`).join('');
 
 // ---------- auth ----------
 function authError(error) {
@@ -384,7 +388,7 @@ function renderQueue() {
     const canCancel = r.status === 'requested' || r.status === 'printing';
     return `<div class="req${seen.has(r.id) ? '' : ' new'}" data-id="${r.id}">
       <div class="no">${pad(r.pickup_no)}</div>
-      <div class="what"><span class="sw" style="background:${esc(hexFor(r.color))}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>
+      <div class="what"><span class="sws">${swatches(r.color)}</span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>
       <div class="acts">
         ${nx ? `<button class="btn" data-act="${nx[0]}">${nx[1]}</button>` : ''}
         ${canCancel ? '<button class="btn danger small" data-act="cancelled">Cancel</button>' : ''}
@@ -652,7 +656,7 @@ function renderStats(all) {
       </div>
     </div>
     <div class="card"><h3>Most popular items</h3>${barList(countBy(rows, 'item_name').slice(0, 8))}</div>
-    <div class="card"><h3>Favorite colors</h3>${barList(countBy(rows, 'color').slice(0, 8), hexFor)}</div>
+    <div class="card"><h3>Favorite colors</h3>${barList(countBy(rows.flatMap(r => splitColors(r.color).map(color => ({ color }))), 'color').slice(0, 8), hexFor)}</div>
     <div class="card"><h3>Fun facts</h3><div class="facts">
       <div class="fact"><span>This month</span><span>${thisMonth} request${thisMonth === 1 ? '' : 's'}</span></div>
       <div class="fact"><span>Busiest day</span><span>${busiest}</span></div>
