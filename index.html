@@ -8,121 +8,225 @@
 <title>Sandstorm's 3D Prints</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0d0f;
-    --panel: #17171b;
-    --orange: #ff7a1a;
-    --orange-soft: #ffa25c;
-    --text: #f3efe9;
-    --muted: #9a958e;
+    --bg: #0d0d0f; --panel: #17171b; --panel-2: #202026; --line: #2c2c33;
+    --orange: #ff7a1a; --orange-soft: #ffa25c; --text: #f3efe9; --muted: #9a958e;
+    --bad: #ff5a5a;
   }
   * { box-sizing: border-box; margin: 0; }
-  html, body { height: 100%; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    background:
-      radial-gradient(120% 70% at 50% 0%, rgba(255,122,26,.16), transparent 60%),
-      var(--bg);
-    color: var(--text);
-    font-family: 'Poppins', system-ui, sans-serif;
-    display: grid;
-    place-items: center;
-    padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
-    min-height: 100vh;
+    background: radial-gradient(120% 50% at 50% 0%, rgba(255,122,26,.14), transparent 60%), var(--bg);
+    color: var(--text); font-family: 'Poppins', system-ui, sans-serif;
+    min-height: 100vh; padding: 20px 16px calc(28px + env(safe-area-inset-bottom));
   }
+  .wrap { max-width: 520px; margin: 0 auto; }
+  header { text-align: center; margin: 8px 0 22px; }
+  header h1 { font-weight: 800; font-size: 1.9rem; line-height: 1.05; }
+  header .sub { margin-top: 4px; color: var(--orange); font-weight: 700; letter-spacing: .32em; font-size: .78rem; padding-left: .32em; }
+  .kids-badge { display: inline-block; margin-top: 10px; padding: 3px 12px; border-radius: 99px; background: var(--orange); color: #1a1004; font-weight: 700; font-size: .8rem; }
   .card {
-    width: 100%;
-    max-width: 420px;
-    text-align: center;
-    padding: 40px 28px 32px;
-    border-radius: 22px;
-    background: var(--panel);
-    border: 1.5px solid rgba(255,122,26,.45);
-    box-shadow: 0 20px 60px rgba(0,0,0,.5);
-    position: relative;
-    overflow: hidden;
+    background: var(--panel); border: 1.5px solid var(--line); border-radius: 20px; padding: 22px 18px;
   }
-  /* 3D-printer layer lines */
-  .card::before {
-    content: "";
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 2px, transparent 2px 5px);
-    pointer-events: none;
+  .step-title { font-weight: 700; font-size: 1.2rem; margin-bottom: 4px; }
+  .hint { color: var(--muted); font-size: .95rem; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 16px; }
+  .item {
+    appearance: none; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text);
+    border-radius: 16px; padding: 0; text-align: left; font: inherit; cursor: pointer; overflow: hidden;
+    display: flex; flex-direction: column; transition: border-color .15s, transform .1s;
   }
-  .nozzle {
-    width: 64px; height: 64px; margin: 0 auto 22px;
-    display: block;
+  .item:active { transform: scale(.98); }
+  .item.sel { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(255,122,26,.35); }
+  .thumb { aspect-ratio: 1; background: #26262c; display: grid; place-items: center; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb svg { width: 42%; opacity: .55; }
+  .item .nm { font-weight: 700; font-size: 1rem; padding: 10px 12px 2px; }
+  .item .ds { color: var(--muted); font-size: .8rem; line-height: 1.35; padding: 0 12px 12px; }
+  .colors { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .chip {
+    appearance: none; font: inherit; color: var(--text); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px 9px 10px;
+    border-radius: 99px; border: 1.5px solid var(--line); background: var(--panel-2); font-weight: 600;
   }
-  h1 {
-    font-weight: 800;
-    font-size: clamp(2rem, 9vw, 2.6rem);
-    line-height: 1.05;
-    letter-spacing: -.01em;
+  .chip .sw { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); }
+  .chip.sel { border-color: var(--orange); background: rgba(255,122,26,.14); }
+  .btn {
+    appearance: none; border: 0; font: inherit; font-weight: 700; font-size: 1.05rem; cursor: pointer;
+    width: 100%; padding: 15px; border-radius: 14px; margin-top: 18px;
+    background: var(--orange); color: #1a1004;
   }
-  .sub {
-    margin-top: 6px;
-    font-weight: 700;
-    letter-spacing: .32em;
-    font-size: .9rem;
-    color: var(--orange);
-    padding-left: .32em;
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1.5px solid var(--line); }
+  .back { appearance: none; background: none; border: 0; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer; padding: 4px 0; margin-bottom: 10px; }
+  input.code {
+    width: 100%; margin-top: 16px; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line);
+    background: var(--panel-2); color: var(--text); font: inherit; font-size: 1.4rem; font-weight: 700;
+    text-align: center; letter-spacing: .2em; text-transform: uppercase;
   }
-  .rule {
-    width: 56%; height: 3px; margin: 24px auto;
-    background: var(--orange);
-    border-radius: 2px;
-  }
-  .soon {
-    font-weight: 700;
-    font-size: 1.25rem;
-  }
-  p.note {
-    margin-top: 10px;
-    color: var(--muted);
-    font-weight: 500;
-    font-size: .98rem;
-    line-height: 1.55;
-  }
-  .bar {
-    margin: 26px auto 0;
-    width: 72%;
-    height: 8px;
-    border-radius: 99px;
-    background: #26262c;
-    overflow: hidden;
-  }
-  .bar span {
-    display: block;
-    height: 100%;
-    width: 40%;
-    border-radius: 99px;
-    background: linear-gradient(90deg, var(--orange), var(--orange-soft));
-    animation: print 2.8s ease-in-out infinite;
-  }
-  @keyframes print {
-    0%   { transform: translateX(-100%); }
-    100% { transform: translateX(250%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .bar span { animation: none; width: 60%; }
-  }
+  input.code:focus { outline: none; border-color: var(--orange); }
+  .err { color: var(--bad); font-weight: 600; font-size: .92rem; margin-top: 12px; min-height: 1.2em; }
+  .picked { display: flex; gap: 14px; align-items: center; margin: 4px 0 6px; }
+  .picked .thumb { width: 64px; border-radius: 12px; overflow: hidden; flex: none; }
+  .done { text-align: center; }
+  .done .lbl { color: var(--muted); font-weight: 600; letter-spacing: .12em; font-size: .8rem; text-transform: uppercase; }
+  .done .num { font-weight: 800; font-size: 5.2rem; line-height: 1; color: var(--orange); margin: 6px 0 4px; letter-spacing: -.02em; }
+  .done .what { font-weight: 700; font-size: 1.15rem; }
+  .done .note { margin-top: 16px; }
+  .shot { margin-top: 18px; padding: 12px; border-radius: 12px; background: rgba(255,122,26,.1); color: var(--orange-soft); font-weight: 600; font-size: .92rem; }
+  .privacy { text-align: center; color: #6f6b65; font-size: .78rem; margin-top: 22px; line-height: 1.5; }
+  .center { text-align: center; }
+  .spinner { width: 34px; height: 34px; margin: 30px auto; border-radius: 50%; border: 3px solid #2c2c33; border-top-color: var(--orange); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-  <main class="card">
-    <svg class="nozzle" viewBox="0 0 64 64" aria-hidden="true">
-      <rect x="14" y="6" width="36" height="20" rx="4" fill="none" stroke="#ff7a1a" stroke-width="4"/>
-      <path d="M24 26h16l-5 14h-6z" fill="#ff7a1a"/>
-      <circle cx="32" cy="48" r="3" fill="#ffa25c"/>
-      <rect x="12" y="56" width="40" height="4" rx="2" fill="#ff7a1a"/>
-    </svg>
+<div class="wrap">
+  <header>
     <h1>Sandstorm&rsquo;s</h1>
     <div class="sub">3D PRINTS</div>
-    <div class="rule"></div>
-    <div class="soon">Coming soon</div>
-    <p class="note">Free 3D prints are warming up.<br>Check back soon to pick yours!</p>
-    <div class="bar" role="presentation"><span></span></div>
-  </main>
+    <div class="kids-badge" id="kidsBadge" hidden>Kids&rsquo; picks</div>
+  </header>
+
+  <main id="app"><div class="spinner" aria-label="Loading"></div></main>
+
+  <p class="privacy">No names, no sign-up, nothing personal collected.<br>Just pick something fun.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xmsfnoloijgvtlfvzmyb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-BiThUOZZrxtoWV8T4eb6Q_1mOnfGWp';
+const DEVICE_DAILY_MAX = 3;
+
+const params = new URLSearchParams(location.search);
+const SOURCE = params.get('for') === 'kids' ? 'kids' : 'office';
+if (SOURCE === 'kids') document.getElementById('kidsBadge').hidden = false;
+
+const app = document.getElementById('app');
+const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } }) : null;
+
+const S = { state: null, items: [], colors: [], code: '', item: null, color: null };
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cube = '<svg viewBox="0 0 24 24" fill="none" stroke="#ff7a1a" stroke-width="1.6" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>';
+const thumb = it => `<div class="thumb">${it.photo_url ? `<img src="${esc(it.photo_url)}" alt="" loading="lazy">` : cube}</div>`;
+
+// soft per-device limit (the database has the real limit)
+function todayKey() { return 'sp-count-' + new Date().toISOString().slice(0, 10); }
+function deviceCount() { try { return +localStorage.getItem(todayKey()) || 0; } catch { return 0; } }
+function bumpDevice() { try { localStorage.setItem(todayKey(), deviceCount() + 1); } catch {} }
+
+function message(title, body, retry) {
+  app.innerHTML = `<div class="card center"><div class="step-title">${esc(title)}</div><p class="hint" style="margin-top:6px">${esc(body)}</p>${retry ? '<button class="btn ghost" id="retry">Try again</button>' : ''}</div>`;
+  if (retry) document.getElementById('retry').onclick = start;
+}
+
+async function start() {
+  app.innerHTML = '<div class="spinner" aria-label="Loading"></div>';
+  if (!db) return message('Hmm, something didn’t load', 'Check your connection and try again.', true);
+  const [st, it, co] = await Promise.all([
+    db.rpc('get_public_state'),
+    db.from('catalog_items').select('id,name,description,photo_url,sort_order').order('sort_order', { ascending: true }),
+    db.from('colors').select('name,hex,sort_order').order('sort_order', { ascending: true }),
+  ]);
+  if (st.error || it.error || co.error) return message('Hmm, something didn’t load', 'Check your connection and try again.', true);
+  S.state = st.data; S.items = it.data || []; S.colors = co.data || [];
+  if (!S.state.accepting) return message('Taking a break', S.state.closed_message);
+  if (deviceCount() >= DEVICE_DAILY_MAX) return message('That’s a lot of prints!', 'You’ve made a few picks today. Come back another day for more.');
+  if (!S.items.length || !S.colors.length) return message('Catalog coming soon', 'New prints are being added. Check back soon!');
+  if (S.state.code_required && !S.code) return showCode();
+  showCatalog();
+}
+
+function showCode(err) {
+  app.innerHTML = `
+    <div class="card">
+      <div class="step-title">Enter the code</div>
+      <p class="hint">You&rsquo;ll find it on the card by the sign.</p>
+      <input class="code" id="code" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(S.code)}">
+      <div class="err" id="err">${esc(err || '')}</div>
+      <button class="btn" id="go">Continue</button>
+    </div>`;
+  const inp = document.getElementById('code');
+  const go = () => { S.code = inp.value.trim(); if (!S.code) return; showCatalog(); };
+  document.getElementById('go').onclick = go;
+  inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+function showCatalog() {
+  app.innerHTML = `
+    <div class="card">
+      <div class="step-title">Pick a free print</div>
+      <p class="hint">Tap the one you want.</p>
+      <div class="grid">${S.items.map(it => `
+        <button class="item${S.item && S.item.id === it.id ? ' sel' : ''}" data-id="${it.id}">
+          ${thumb(it)}<div class="nm">${esc(it.name)}</div>${it.description ? `<div class="ds">${esc(it.description)}</div>` : '<div class="ds"></div>'}
+        </button>`).join('')}
+      </div>
+    </div>`;
+  app.querySelectorAll('.item').forEach(b => b.onclick = () => {
+    S.item = S.items.find(i => i.id === +b.dataset.id);
+    showColor();
+  });
+}
+
+function showColor(err) {
+  app.innerHTML = `
+    <div class="card">
+      <button class="back" id="back">&larr; Back</button>
+      <div class="picked">${thumb(S.item)}<div><div class="step-title">${esc(S.item.name)}</div><p class="hint">Now pick a color.</p></div></div>
+      <div class="colors">${S.colors.map(c => `
+        <button class="chip${S.color === c.name ? ' sel' : ''}" data-c="${esc(c.name)}"><span class="sw" style="background:${esc(c.hex)}"></span>${esc(c.name)}</button>`).join('')}
+      </div>
+      <div class="err" id="err">${esc(err || '')}</div>
+      <button class="btn" id="send" ${S.color ? '' : 'disabled'}>Request it</button>
+    </div>`;
+  document.getElementById('back').onclick = () => { S.color = null; showCatalog(); };
+  app.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    S.color = b.dataset.c;
+    app.querySelectorAll('.chip').forEach(x => x.classList.toggle('sel', x === b));
+    document.getElementById('send').disabled = false;
+  });
+  document.getElementById('send').onclick = submit;
+}
+
+async function submit() {
+  const btn = document.getElementById('send');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const { data, error } = await db.rpc('submit_request', {
+    p_item: S.item.id, p_color: S.color, p_code: S.code || null, p_source: SOURCE,
+  });
+  if (error) {
+    const m = (error.message || '');
+    if (m.includes('bad_code')) { S.code = ''; return showCode('That code didn’t match. Check the card by the sign.'); }
+    if (m.includes('closed')) return message('Taking a break', S.state.closed_message);
+    if (m.includes('busy')) return message('Lots of requests right now!', 'The printer is booked up for today. Please try again tomorrow.');
+    if (m.includes('bad_item') || m.includes('bad_color')) { S.item = null; S.color = null; return start(); }
+    return showColor('Couldn’t send that. Check your connection and try again.');
+  }
+  bumpDevice();
+  showDone(data.pickup_no);
+}
+
+function showDone(n) {
+  const num = String(n).padStart(3, '0');
+  app.innerHTML = `
+    <div class="card done">
+      <div class="lbl">Your pickup number</div>
+      <div class="num">#${num}</div>
+      <div class="what">${esc(S.item.name)} &middot; ${esc(S.color)}</div>
+      <p class="hint note">${esc(S.state.pickup_note)}</p>
+      <div class="shot">Take a screenshot so you remember your number.</div>
+      <button class="btn ghost" id="again">Done</button>
+    </div>`;
+  document.getElementById('again').onclick = () => { S.item = null; S.color = null; start(); };
+}
+
+start();
+</script>
 </body>
 </html>

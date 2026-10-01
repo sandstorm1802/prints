@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0d0d0f">
+<title>Print Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f; --panel: #17171b; --panel-2: #202026; --line: #2c2c33;
+    --orange: #ff7a1a; --orange-soft: #ffa25c; --text: #f3efe9; --muted: #9a958e;
+    --blue: #5b9dff; --green: #3ccf7a; --bad: #ff5a5a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: 'Poppins', system-ui, sans-serif; min-height: 100vh; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+  .top { position: sticky; top: 0; z-index: 5; background: rgba(13,13,15,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 10px; }
+  .brand { font-weight: 800; font-size: 1.15rem; }
+  .brand span { color: var(--orange); }
+  .status-pill { font-size: .78rem; font-weight: 700; padding: 4px 10px; border-radius: 99px; }
+  .status-pill.on { background: rgba(60,207,122,.15); color: var(--green); }
+  .status-pill.off { background: rgba(255,90,90,.15); color: var(--bad); }
+  .tabs { display: flex; gap: 6px; padding-bottom: 10px; }
+  .tab { appearance: none; border: 0; font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer; padding: 8px 14px; border-radius: 99px; background: transparent; color: var(--muted); }
+  .tab.on { background: var(--orange); color: #1a1004; }
+  .tab .ct { display: inline-block; min-width: 20px; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: rgba(0,0,0,.25); font-size: .75rem; }
+  section { padding-top: 16px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filter { appearance: none; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--panel); color: var(--muted); }
+  .filter.on { border-color: var(--orange); color: var(--text); }
+  .req { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+  .req.new { border-color: var(--orange); }
+  .req .no { grid-row: span 2; font-weight: 800; font-size: 1.6rem; color: var(--orange); min-width: 70px; }
+  .req .what { font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .req .what .sw { flex: none; }
+  .sw { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); display: inline-block; }
+  .req .meta { color: var(--muted); font-size: .82rem; }
+  .badge { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .05em; }
+  .b-requested { background: rgba(255,122,26,.15); color: var(--orange-soft); }
+  .b-printing { background: rgba(91,157,255,.15); color: var(--blue); }
+  .b-ready { background: rgba(60,207,122,.15); color: var(--green); }
+  .b-picked_up, .b-cancelled { background: #26262c; color: var(--muted); }
+  .b-kids { background: #2a2140; color: #c6a8ff; }
+  .acts { grid-row: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .btn { appearance: none; border: 0; font: inherit; font-weight: 700; cursor: pointer; padding: 10px 14px; border-radius: 12px; background: var(--orange); color: #1a1004; font-size: .88rem; white-space: nowrap; }
+  .btn.ghost { background: transparent; border: 1.5px solid var(--line); color: var(--text); }
+  .btn.small { padding: 6px 10px; font-size: .8rem; }
+  .btn.danger { background: transparent; border: 1.5px solid rgba(255,90,90,.4); color: var(--bad); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  .card { background: var(--panel); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .card h3 { font-size: 1rem; margin-bottom: 10px; }
+  label { display: block; font-size: .82rem; font-weight: 600; color: var(--muted); margin: 10px 0 5px; }
+  input[type=text], input[type=email], input[type=number], textarea {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel-2);
+    color: var(--text); font: inherit; font-size: 1rem;
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  input:focus, textarea:focus { outline: none; border-color: var(--orange); }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .row > * { flex: 1; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; }
+  .switch strong { display: block; }
+  .switch small { color: var(--muted); }
+  .tog { appearance: none; width: 52px; height: 30px; border-radius: 99px; background: #3a3a42; position: relative; cursor: pointer; flex: none; border: 0; transition: background .15s; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .tog:checked { background: var(--orange); }
+  .tog:checked::after { transform: translateX(22px); }
+  .it { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .it:first-of-type { border-top: 0; }
+  .it .ph { width: 64px; height: 64px; border-radius: 12px; background: #26262c center/cover no-repeat; display: grid; place-items: center; color: #555; font-size: .7rem; cursor: pointer; overflow: hidden; }
+  .it .ph input { display: none; }
+  .it .nm { font-weight: 700; }
+  .it .ds { color: var(--muted); font-size: .82rem; }
+  .it.off { opacity: .45; }
+  .col { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .col:first-of-type { border-top: 0; }
+  .col .sw { width: 22px; height: 22px; }
+  .col .nm { flex: 1; font-weight: 600; }
+  .col.off .nm { color: var(--muted); text-decoration: line-through; }
+  input[type=color] { width: 46px; height: 42px; border: 0; background: none; padding: 0; flex: none; }
+  .login { max-width: 380px; margin: 12vh auto 0; }
+  .muted { color: var(--muted); font-size: .9rem; line-height: 1.5; }
+  .msg { font-size: .88rem; font-weight: 600; margin-top: 10px; min-height: 1.2em; }
+  .msg.ok { color: var(--green); } .msg.bad { color: var(--bad); }
+  .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--orange); color: #1a1004; font-weight: 700; padding: 10px 18px; border-radius: 99px; box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 20; }
+  .spinner { width: 30px; height: 30px; margin: 40px auto; border-radius: 50%; border: 3px solid #2c2c33; border-top-color: var(--orange); animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  [hidden] { display: none !important; }
+  @media (max-width: 480px) {
+    .req { grid-template-columns: auto 1fr; }
+    .req .acts { grid-column: 1 / -1; grid-row: auto; flex-direction: row; }
+    .req .acts .btn { flex: 1; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap" hidden>
+  <div class="login">
+    <div class="brand" style="font-size:1.6rem">Sandstorm&rsquo;s <span>Queue</span></div>
+    <p class="muted" style="margin:8px 0 18px">Enter your email and we&rsquo;ll send you a sign-in link.</p>
+    <div class="card">
+      <label for="email">Email</label>
+      <input type="email" id="email" autocomplete="email" inputmode="email">
+      <button class="btn" id="sendLink" style="width:100%;margin-top:14px">Send sign-in link</button>
+      <div class="msg" id="loginMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="appView" hidden>
+  <div class="top">
+    <div class="wrap">
+      <div class="bar">
+        <div class="brand">Sandstorm&rsquo;s <span>Queue</span></div>
+        <div class="row" style="flex:none;gap:8px">
+          <span class="status-pill" id="openPill"></span>
+          <button class="btn ghost small" id="signOut">Sign out</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" data-tab="queue">Queue <span class="ct" id="activeCt">0</span></button>
+        <button class="tab" data-tab="catalog">Catalog</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section id="tab-queue">
+      <div class="filters">
+        <button class="filter on" data-f="active">To do</button>
+        <button class="filter" data-f="ready">Ready</button>
+        <button class="filter" data-f="done">Done</button>
+        <button class="filter" data-f="all">All</button>
+      </div>
+      <div id="queueList"><div class="spinner"></div></div>
+    </section>
+
+    <section id="tab-catalog" hidden>
+      <div class="card">
+        <h3>Items</h3>
+        <p class="muted" style="margin-bottom:6px">Tap a photo square to add or change its picture.</p>
+        <div id="itemList"></div>
+      </div>
+      <div class="card">
+        <h3>Add an item</h3>
+        <label for="newName">Name</label>
+        <input type="text" id="newName" maxlength="60" placeholder="e.g. Mini Octopus">
+        <label for="newDesc">Short description (optional)</label>
+        <input type="text" id="newDesc" maxlength="200" placeholder="e.g. Fits in your palm">
+        <button class="btn" id="addItem" style="margin-top:12px">Add item</button>
+        <div class="msg" id="itemMsg"></div>
+      </div>
+      <div class="card">
+        <h3>Colors</h3>
+        <div id="colorList"></div>
+        <div class="row" style="margin-top:12px">
+          <input type="color" id="newHex" value="#ff7a1a">
+          <input type="text" id="newColor" maxlength="30" placeholder="Color name">
+          <button class="btn" id="addColor" style="flex:none">Add</button>
+        </div>
+        <div class="msg" id="colorMsg"></div>
+      </div>
+    </section>
+
+    <section id="tab-settings" hidden>
+      <div class="card">
+        <div class="switch">
+          <div><strong>Taking requests</strong><small>Turn off when the printer is busy.</small></div>
+          <input type="checkbox" class="tog" id="setAccepting">
+        </div>
+        <label for="setClosed">Message when paused</label>
+        <textarea id="setClosed" maxlength="200"></textarea>
+      </div>
+      <div class="card">
+        <label for="setCode" style="margin-top:0">Access code (leave blank for none)</label>
+        <input type="text" id="setCode" maxlength="20" placeholder="e.g. BLUE7" style="text-transform:uppercase">
+        <p class="muted" style="margin-top:6px;font-size:.82rem">If set, people must enter this code from the card by the sign. Change it any time.</p>
+        <label for="setNote">Pickup note (shown with the pickup number)</label>
+        <textarea id="setNote" maxlength="200"></textarea>
+        <label for="setLimit">Most requests per day</label>
+        <input type="number" id="setLimit" min="1" max="500">
+      </div>
+      <button class="btn" id="saveSettings" style="width:100%">Save settings</button>
+      <div class="msg" id="setMsg"></div>
+    </section>
+  </div>
+</div>
+
+<div id="deniedView" class="wrap" hidden>
+  <div class="login">
+    <div class="brand" style="font-size:1.6rem">Not allowed</div>
+    <p class="muted" style="margin:8px 0 18px">This account doesn&rsquo;t have access to the queue.</p>
+    <button class="btn ghost" id="deniedOut">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xmsfnoloijgvtlfvzmyb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-BiThUOZZrxtoWV8T4eb6Q_1mOnfGWp';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => '#' + String(n).padStart(3, '0');
+const NEXT = { requested: ['printing', 'Start printing'], printing: ['ready', 'Mark ready'], ready: ['picked_up', 'Picked up'] };
+const LABEL = { requested: 'New', printing: 'Printing', ready: 'Ready', picked_up: 'Picked up', cancelled: 'Cancelled' };
+
+let requests = [], items = [], colors = [], settings = null, filter = 'active', channel = null, booted = false;
+const seen = new Set();
+
+function show(view) { ['loginView', 'appView', 'deniedView'].forEach(v => $(v).hidden = v !== view); }
+function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(el._t); el._t = setTimeout(() => el.hidden = true, 3500); }
+function flash(id, text, ok = true) { const el = $(id); el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'bad'); if (ok) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 3000); }
+function ago(ts) {
+  const m = Math.round((Date.now() - new Date(ts)) / 60000);
+  if (m < 1) return 'just now'; if (m < 60) return m + 'm ago';
+  const h = Math.round(m / 60); if (h < 24) return h + 'h ago';
+  const d = Math.round(h / 24); return d + 'd ago';
+}
+const hexFor = name => (colors.find(c => c.name === name) || {}).hex || '#888888';
+
+// ---------- auth ----------
+$('sendLink').onclick = async () => {
+  const email = $('email').value.trim();
+  if (!email) return;
+  $('sendLink').disabled = true;
+  const { error } = await db.auth.signInWithOtp({
+    email, options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname },
+  });
+  $('sendLink').disabled = false;
+  if (error) flash('loginMsg', 'Couldn’t send a link to that address.', false);
+  else flash('loginMsg', 'Check your email for the sign-in link.');
+};
+$('email').onkeydown = e => { if (e.key === 'Enter') $('sendLink').click(); };
+$('signOut').onclick = $('deniedOut').onclick = async () => { await db.auth.signOut(); location.reload(); };
+
+async function boot(session) {
+  if (!session) { show('loginView'); return; }
+  if (booted) return;
+  booted = true;
+  const { data: ok } = await db.rpc('is_admin');
+  if (!ok) { show('deniedView'); return; }
+  show('appView');
+  await Promise.all([loadSettings(), loadCatalog(), loadRequests()]);
+  subscribe();
+}
+db.auth.onAuthStateChange((_e, session) => { if (session) boot(session); });
+db.auth.getSession().then(({ data }) => boot(data.session));
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  ['queue', 'catalog', 'settings'].forEach(n => $('tab-' + n).hidden = n !== t.dataset.tab);
+});
+document.querySelectorAll('.filter').forEach(f => f.onclick = () => {
+  filter = f.dataset.f;
+  document.querySelectorAll('.filter').forEach(x => x.classList.toggle('on', x === f));
+  renderQueue();
+});
+
+// ---------- queue ----------
+async function loadRequests() {
+  const { data, error } = await db.from('requests').select('*').order('created_at', { ascending: false }).limit(300);
+  if (error) { $('queueList').innerHTML = '<div class="empty">Couldn’t load requests.</div>'; return; }
+  requests = data;
+  if (!seen.size) requests.forEach(r => seen.add(r.id));
+  renderQueue();
+}
+function renderQueue() {
+  const active = requests.filter(r => r.status === 'requested' || r.status === 'printing');
+  $('activeCt').textContent = active.length;
+  let list = requests;
+  if (filter === 'active') list = active.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (filter === 'ready') list = requests.filter(r => r.status === 'ready');
+  if (filter === 'done') list = requests.filter(r => r.status === 'picked_up' || r.status === 'cancelled');
+  if (!list.length) {
+    $('queueList').innerHTML = `<div class="empty">${filter === 'active' ? 'Nothing to print. Nice!' : 'Nothing here yet.'}</div>`;
+    return;
+  }
+  $('queueList').innerHTML = list.map(r => {
+    const nx = NEXT[r.status];
+    const canCancel = r.status === 'requested' || r.status === 'printing';
+    return `<div class="req${seen.has(r.id) ? '' : ' new'}" data-id="${r.id}">
+      <div class="no">${pad(r.pickup_no)}</div>
+      <div class="what"><span class="sw" style="background:${esc(hexFor(r.color))}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>
+      <div class="acts">
+        ${nx ? `<button class="btn" data-act="${nx[0]}">${nx[1]}</button>` : ''}
+        ${canCancel ? '<button class="btn danger small" data-act="cancelled">Cancel</button>' : ''}
+        ${r.status === 'picked_up' || r.status === 'cancelled' ? '<button class="btn ghost small" data-act="requested">Reopen</button>' : ''}
+      </div>
+      <div class="meta"><span class="badge b-${r.status}">${LABEL[r.status]}</span> ${r.source === 'kids' ? '<span class="badge b-kids">Kids</span>' : ''} &middot; ${ago(r.created_at)}</div>
+    </div>`;
+  }).join('');
+  $('queueList').querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+    const id = +b.closest('.req').dataset.id;
+    const act = b.dataset.act;
+    if (act === 'cancelled' && !confirm('Cancel this request?')) return;
+    setStatus(id, act, b);
+  });
+}
+async function setStatus(id, status, btn) {
+  btn.disabled = true;
+  seen.add(id);
+  const { data, error } = await db.from('requests').update({ status }).eq('id', id).select().single();
+  if (error) { btn.disabled = false; toast('Couldn’t update. Try again.'); return; }
+  const i = requests.findIndex(r => r.id === id);
+  if (i >= 0) requests[i] = data;
+  renderQueue();
+}
+function subscribe() {
+  channel = db.channel('requests-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, payload => {
+      if (payload.eventType === 'INSERT') {
+        requests.unshift(payload.new);
+        toast('New request ' + pad(payload.new.pickup_no) + ': ' + payload.new.item_name);
+      } else if (payload.eventType === 'UPDATE') {
+        const i = requests.findIndex(r => r.id === payload.new.id);
+        if (i >= 0) requests[i] = payload.new; else requests.unshift(payload.new);
+      } else if (payload.eventType === 'DELETE') {
+        requests = requests.filter(r => r.id !== payload.old.id);
+      }
+      renderQueue();
+    })
+    .subscribe();
+}
+// catch up after the phone sleeps, and keep the "ago" times fresh
+document.addEventListener('visibilitychange', () => { if (!document.hidden && booted && !$('appView').hidden) loadRequests(); });
+setInterval(() => { if (!document.hidden && !$('appView').hidden) renderQueue(); }, 60000);
+
+// ---------- catalog ----------
+async function loadCatalog() {
+  const [it, co] = await Promise.all([
+    db.from('catalog_items').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
+    db.from('colors').select('*').order('sort_order', { ascending: true }),
+  ]);
+  items = it.data || []; colors = co.data || [];
+  renderCatalog(); renderQueue();
+}
+function renderCatalog() {
+  $('itemList').innerHTML = items.length ? items.map(it => `
+    <div class="it${it.active ? '' : ' off'}" data-id="${it.id}">
+      <label class="ph" style="${it.photo_url ? `background-image:url('${esc(it.photo_url)}')` : ''}">${it.photo_url ? '' : '+ Photo'}<input type="file" accept="image/*"></label>
+      <div><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.description || '')}</div></div>
+      <div class="row" style="gap:6px;flex:none">
+        <button class="btn ghost small" data-act="edit">Edit</button>
+        <input type="checkbox" class="tog" data-act="active" ${it.active ? 'checked' : ''} title="Show in catalog">
+      </div>
+    </div>`).join('') : '<div class="empty" style="padding:12px 0">No items yet.</div>';
+  $('itemList').querySelectorAll('.it').forEach(row => {
+    const id = +row.dataset.id;
+    const it = items.find(x => x.id === id);
+    row.querySelector('[data-act=active]').onchange = async e => {
+      const { error } = await db.from('catalog_items').update({ active: e.target.checked }).eq('id', id);
+      if (error) { e.target.checked = !e.target.checked; return toast('Couldn’t update.'); }
+      it.active = e.target.checked; renderCatalog();
+    };
+    row.querySelector('[data-act=edit]').onclick = async () => {
+      const name = prompt('Item name', it.name); if (name === null || !name.trim()) return;
+      const description = prompt('Short description', it.description || ''); if (description === null) return;
+      const { error } = await db.from('catalog_items').update({ name: name.trim(), description: description.trim() || null }).eq('id', id);
+      if (error) return toast('Couldn’t save.');
+      it.name = name.trim(); it.description = description.trim() || null; renderCatalog();
+    };
+    row.querySelector('input[type=file]').onchange = e => uploadPhoto(it, e.target.files[0]);
+  });
+
+  $('colorList').innerHTML = colors.map(c => `
+    <div class="col${c.active ? '' : ' off'}" data-n="${esc(c.name)}">
+      <span class="sw" style="background:${esc(c.hex)}"></span><span class="nm">${esc(c.name)}</span>
+      <input type="checkbox" class="tog" ${c.active ? 'checked' : ''} title="Offer this color">
+    </div>`).join('');
+  $('colorList').querySelectorAll('.col').forEach(row => {
+    const c = colors.find(x => x.name === row.dataset.n);
+    row.querySelector('.tog').onchange = async e => {
+      const { error } = await db.from('colors').update({ active: e.target.checked }).eq('name', c.name);
+      if (error) { e.target.checked = !e.target.checked; return toast('Couldn’t update.'); }
+      c.active = e.target.checked; renderCatalog();
+    };
+  });
+}
+$('addItem').onclick = async () => {
+  const name = $('newName').value.trim(); if (!name) return;
+  const description = $('newDesc').value.trim() || null;
+  const sort_order = (items.reduce((m, i) => Math.max(m, i.sort_order), 0) || 0) + 10;
+  const { data, error } = await db.from('catalog_items').insert({ name, description, sort_order }).select().single();
+  if (error) return flash('itemMsg', 'Couldn’t add that item.', false);
+  items.push(data); $('newName').value = ''; $('newDesc').value = '';
+  renderCatalog(); flash('itemMsg', 'Added. Tap its photo square to add a picture.');
+};
+$('addColor').onclick = async () => {
+  const name = $('newColor').value.trim(); if (!name) return;
+  const hex = $('newHex').value;
+  const sort_order = (colors.reduce((m, c) => Math.max(m, c.sort_order), 0) || 0) + 10;
+  const { data, error } = await db.from('colors').insert({ name, hex, sort_order }).select().single();
+  if (error) return flash('colorMsg', 'Couldn’t add that color (is the name already used?).', false);
+  colors.push(data); $('newColor').value = '';
+  renderCatalog(); flash('colorMsg', 'Color added.');
+};
+
+// shrink photos on the phone before upload so pages stay fast
+function shrink(file, max = 900) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('resize')), 'image/jpeg', 0.85);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function uploadPhoto(it, file) {
+  if (!file) return;
+  toast('Uploading photo…');
+  try {
+    const blob = await shrink(file);
+    const path = `item-${it.id}-${Date.now()}.jpg`;
+    const up = await db.storage.from('catalog').upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (up.error) throw up.error;
+    const url = db.storage.from('catalog').getPublicUrl(path).data.publicUrl;
+    const { error } = await db.from('catalog_items').update({ photo_url: url }).eq('id', it.id);
+    if (error) throw error;
+    it.photo_url = url; renderCatalog(); toast('Photo saved');
+  } catch (e) { toast('Photo upload failed'); }
+}
+
+// ---------- settings ----------
+async function loadSettings() {
+  const { data } = await db.from('settings').select('*').eq('id', 1).single();
+  settings = data; if (!settings) return;
+  $('setAccepting').checked = settings.accepting;
+  $('setClosed').value = settings.closed_message;
+  $('setCode').value = settings.access_code || '';
+  $('setNote').value = settings.pickup_note;
+  $('setLimit').value = settings.daily_limit;
+  renderPill();
+}
+function renderPill() {
+  const on = settings && settings.accepting;
+  $('openPill').textContent = on ? 'Open' : 'Paused';
+  $('openPill').className = 'status-pill ' + (on ? 'on' : 'off');
+}
+$('setAccepting').onchange = async e => {
+  const { error } = await db.from('settings').update({ accepting: e.target.checked }).eq('id', 1);
+  if (error) { e.target.checked = !e.target.checked; return toast('Couldn’t update.'); }
+  settings.accepting = e.target.checked; renderPill();
+  toast(settings.accepting ? 'Taking requests' : 'Requests paused');
+};
+$('saveSettings').onclick = async () => {
+  const code = $('setCode').value.trim().toUpperCase();
+  const patch = {
+    accepting: $('setAccepting').checked,
+    closed_message: $('setClosed').value.trim() || 'Taking a short break. Check back soon!',
+    access_code: code || null,
+    pickup_note: $('setNote').value.trim() || 'Pick up at the front desk.',
+    daily_limit: Math.max(1, Math.min(500, parseInt($('setLimit').value, 10) || 25)),
+  };
+  const { error } = await db.from('settings').update(patch).eq('id', 1);
+  if (error) return flash('setMsg', 'Couldn’t save settings.', false);
+  Object.assign(settings, patch); $('setCode').value = code; renderPill();
+  flash('setMsg', 'Saved.');
+};
+</script>
+</body>
+</html>
