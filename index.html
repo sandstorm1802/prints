@@ -262,6 +262,8 @@ async function start() {
   S.items = (it.data || []).filter(i => !i.section || S.sections.some(x => x.name === i.section));
   S.sections = S.sections.filter(x => S.items.some(i => i.section === x.name));
   if (!S.state.accepting) return message(S.state.full ? 'All booked up!' : 'Taking a break', S.state.closed_message);
+  // queue has room but today's limit is used up
+  if (S.state.spots_left === 0) return message('All booked up for today!', 'That\u2019s all the requests for today. Check back tomorrow.');
   if (deviceCount() >= DEVICE_DAILY_MAX) return message('That’s a lot of prints!', 'You’ve made a few picks today. Come back another day for more.');
   if (!S.items.length || !S.colors.length) return message('Catalog coming soon', 'New prints are being added. Check back soon!');
   if (S.state.code_required && !S.code) return showCode();
