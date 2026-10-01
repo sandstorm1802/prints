@@ -150,7 +150,7 @@
     <section id="tab-catalog" hidden>
       <div class="card">
         <h3>Items</h3>
-        <p class="muted" style="margin-bottom:6px">Tap a photo square to add or change its picture.</p>
+        <p class="muted" style="margin-bottom:6px">Tap a photo square to add or change its picture. Switch an item off to hide it; hidden items can be deleted.</p>
         <div id="itemList"></div>
       </div>
       <div class="card">
@@ -374,6 +374,7 @@ function renderCatalog() {
       <label class="ph" style="${it.photo_url ? `background-image:url('${esc(it.photo_url)}')` : ''}">${it.photo_url ? '' : '+ Photo'}<input type="file" accept="image/*"></label>
       <div><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.description || '')}</div></div>
       <div class="row" style="gap:6px;flex:none">
+        ${it.active ? '' : '<button class="btn danger small" data-act="del">Delete</button>'}
         <button class="btn ghost small" data-act="edit">Edit</button>
         <input type="checkbox" class="tog" data-act="active" ${it.active ? 'checked' : ''} title="Show in catalog">
       </div>
@@ -392,6 +393,18 @@ function renderCatalog() {
       const { error } = await db.from('catalog_items').update({ name: name.trim(), description: description.trim() || null }).eq('id', id);
       if (error) return toast('Couldn’t save.');
       it.name = name.trim(); it.description = description.trim() || null; renderCatalog();
+    };
+    const del = row.querySelector('[data-act=del]');
+    if (del) del.onclick = async () => {
+      if (!confirm(`Delete "${it.name}" for good? Past requests keep their item name.`)) return;
+      del.disabled = true;
+      const { error } = await db.from('catalog_items').delete().eq('id', id);
+      if (error) { del.disabled = false; return toast('Couldn’t delete.'); }
+      const marker = '/object/public/catalog/';
+      if (it.photo_url && it.photo_url.includes(marker)) {
+        await db.storage.from('catalog').remove([decodeURIComponent(it.photo_url.split(marker)[1].split(/[?#]/)[0])]);
+      }
+      items = items.filter(x => x.id !== id); renderCatalog(); toast('Deleted');
     };
     row.querySelector('input[type=file]').onchange = e => uploadPhoto(it, e.target.files[0]);
   });
