@@ -46,6 +46,16 @@
   .b-printing { background: rgba(91,157,255,.15); color: var(--blue); }
   .b-ready { background: rgba(60,207,122,.15); color: var(--green); }
   .b-picked_up, .b-cancelled { background: #26262c; color: var(--muted); }
+  .b-due { background: rgba(255,122,26,.15); color: var(--orange-soft); }
+  .it > div:nth-child(2) { min-width: 0; }
+  .secsel { width: 100%; margin-top: 6px; font: inherit; font-size: .8rem; font-weight: 600; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text); max-width: 100%; }
+  .sec { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+  .sec .nm { grid-column: 1 / -1; }
+  .sec input[type=date] { justify-self: start; }
+  .sec:first-of-type { border-top: 0; }
+  .sec .nm { font-weight: 700; }
+  .sec.off .nm { color: var(--muted); }
+  input[type=date] { font: inherit; font-size: .9rem; padding: 7px 8px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--text); color-scheme: dark; }
   .b-kids { background: #2a2140; color: #c6a8ff; }
   .acts { grid-row: span 2; display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
   .btn { appearance: none; border: 0; font: inherit; font-weight: 700; cursor: pointer; padding: 10px 14px; border-radius: 12px; background: var(--orange); color: #1a1004; font-size: .88rem; white-space: nowrap; }
@@ -189,6 +199,18 @@
         <div class="msg" id="itemMsg"></div>
       </div>
       <div class="card">
+        <h3>Holiday sections</h3>
+        <p class="muted" style="margin-bottom:6px">Each section gets its own tab on the request page. Set the date its prints must be ready by. Switch a section off to hide it until next year.</p>
+        <div id="sectionList"></div>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap">
+          <input type="text" id="newSecEmoji" maxlength="8" placeholder="🦃" style="flex:none;width:58px;text-align:center">
+          <input type="text" id="newSecName" maxlength="30" placeholder="Section name">
+          <input type="date" id="newSecDate" style="flex:none">
+          <button class="btn" id="addSection" style="flex:none">Add</button>
+        </div>
+        <div class="msg" id="secMsg"></div>
+      </div>
+      <div class="card">
         <h3>Colors</h3>
         <div id="colorList"></div>
         <div class="row" style="margin-top:12px">
@@ -250,6 +272,10 @@ const pad = n => '#' + String(n).padStart(3, '0');
 const NEXT = { requested: ['printing', 'Start printing'], printing: ['ready', 'Mark ready'], ready: ['picked_up', 'Picked up'] };
 const LABEL = { requested: 'New', printing: 'Printing', ready: 'Ready', picked_up: 'Picked up', cancelled: 'Cancelled' };
 
+let sections = [];
+const dueText = d => d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+// holiday requests sort by their due date (about 3 weeks of lead time), everyday ones by when they came in
+const workKey = r => r.ready_by ? new Date(r.ready_by + 'T12:00:00').getTime() - 21 * 864e5 : new Date(r.created_at).getTime();
 let requests = [], items = [], colors = [], settings = null, filter = 'active', channel = null, booted = false;
 const seen = new Set();
 
@@ -337,7 +363,7 @@ function renderQueue() {
   const active = requests.filter(r => r.status === 'requested' || r.status === 'printing');
   $('activeCt').textContent = active.length;
   let list = requests;
-  if (filter === 'active') list = active.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (filter === 'active') list = active.slice().sort((a, b) => workKey(a) - workKey(b));
   if (filter === 'ready') list = requests.filter(r => r.status === 'ready');
   if (filter === 'done') list = requests.filter(r => r.status === 'picked_up' || r.status === 'cancelled');
   if (!list.length) {
@@ -355,7 +381,7 @@ function renderQueue() {
         ${canCancel ? '<button class="btn danger small" data-act="cancelled">Cancel</button>' : ''}
         ${r.status === 'picked_up' || r.status === 'cancelled' ? '<button class="btn ghost small" data-act="requested">Reopen</button>' : ''}
       </div>
-      <div class="meta"><span class="badge b-${r.status}">${LABEL[r.status]}</span> ${r.source === 'kids' ? '<span class="badge b-kids">Kids</span>' : ''} &middot; ${ago(r.created_at)}</div>
+      <div class="meta"><span class="badge b-${r.status}">${LABEL[r.status]}</span> ${r.source === 'kids' ? '<span class="badge b-kids">Kids</span>' : ''}${r.ready_by && r.status !== 'picked_up' && r.status !== 'cancelled' ? ` <span class="badge b-due">${esc((sections.find(x => x.name === r.section) || {}).emoji || '')} Due ${esc(dueText(r.ready_by))}</span>` : ''} &middot; ${ago(r.created_at)}</div>
     </div>`;
   }).join('');
   $('queueList').querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
@@ -396,20 +422,22 @@ setInterval(() => { if (!document.hidden && !$('appView').hidden) renderQueue();
 
 // ---------- catalog ----------
 async function loadCatalog() {
-  const [it, co] = await Promise.all([
+  const [it, co, se] = await Promise.all([
     db.from('catalog_items').select('*').order('sort_order', { ascending: true }).order('id', { ascending: true }),
     db.from('colors').select('*').order('sort_order', { ascending: true }),
+    db.from('sections').select('*').order('sort_order', { ascending: true }),
   ]);
-  items = it.data || []; colors = co.data || [];
+  items = it.data || []; colors = co.data || []; sections = se.error ? [] : (se.data || []);
   renderCatalog(); renderQueue();
 }
 function renderCatalog() {
   $('itemList').innerHTML = items.length ? items.map(it => `
     <div class="it${it.active ? '' : ' off'}" data-id="${it.id}">
       <label class="ph" style="${it.photo_url ? `background-image:url('${esc(it.photo_url)}')` : ''}">${it.photo_url ? '' : '+ Photo'}<input type="file" accept="image/*"></label>
-      <div><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.description || '')}</div></div>
+      <div><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.description || '')}</div>${sections.length ? `<select class="secsel" title="Section">
+        <option value="">Everyday</option>${sections.map(x => `<option value="${esc(x.name)}"${it.section === x.name ? ' selected' : ''}>${esc(x.emoji || '')} ${esc(x.name)}</option>`).join('')}
+      </select>` : ''}${it.active ? '' : '<div><button class="btn danger small" data-act="del" style="margin-top:6px">Delete</button></div>'}</div>
       <div class="row" style="gap:6px;flex:none">
-        ${it.active ? '' : '<button class="btn danger small" data-act="del">Delete</button>'}
         <button class="btn ghost small" data-act="edit">Edit</button>
         <input type="checkbox" class="tog" data-act="active" ${it.active ? 'checked' : ''} title="Show in catalog">
       </div>
@@ -417,6 +445,13 @@ function renderCatalog() {
   $('itemList').querySelectorAll('.it').forEach(row => {
     const id = +row.dataset.id;
     const it = items.find(x => x.id === id);
+    const ss = row.querySelector('.secsel');
+    if (ss) ss.onchange = async () => {
+      const section = ss.value || null;
+      const { error } = await db.from('catalog_items').update({ section }).eq('id', id);
+      if (error) { ss.value = it.section || ''; return toast('Couldn’t move it.'); }
+      it.section = section; toast(section ? 'Moved to ' + section : 'Moved to Everyday');
+    };
     row.querySelector('[data-act=active]').onchange = async e => {
       const { error } = await db.from('catalog_items').update({ active: e.target.checked }).eq('id', id);
       if (error) { e.target.checked = !e.target.checked; return toast('Couldn’t update.'); }
@@ -444,6 +479,27 @@ function renderCatalog() {
     row.querySelector('input[type=file]').onchange = e => uploadPhoto(it, e.target.files[0]);
   });
 
+  $('sectionList').innerHTML = sections.length ? sections.map(x => `
+    <div class="sec${x.active ? '' : ' off'}" data-n="${esc(x.name)}">
+      <div class="nm">${esc(x.emoji || '')} ${esc(x.name)} <span class="muted" style="font-weight:500;font-size:.8rem">(${items.filter(i => i.section === x.name).length} items)</span></div>
+      <input type="date" value="${esc(x.ready_by || '')}" title="Ready by">
+      <input type="checkbox" class="tog" ${x.active ? 'checked' : ''} title="Show this section">
+    </div>`).join('') : '<div class="muted" style="padding:6px 0">No sections yet.</div>';
+  $('sectionList').querySelectorAll('.sec').forEach(row => {
+    const x = sections.find(y => y.name === row.dataset.n);
+    row.querySelector('input[type=date]').onchange = async e => {
+      const ready_by = e.target.value || null;
+      const { error } = await db.from('sections').update({ ready_by }).eq('name', x.name);
+      if (error) { e.target.value = x.ready_by || ''; return toast('Couldn’t save the date.'); }
+      x.ready_by = ready_by; toast(ready_by ? `${x.name}: ready by ${dueText(ready_by)}` : `${x.name}: no date`);
+    };
+    row.querySelector('.tog').onchange = async e => {
+      const { error } = await db.from('sections').update({ active: e.target.checked }).eq('name', x.name);
+      if (error) { e.target.checked = !e.target.checked; return toast('Couldn’t update.'); }
+      x.active = e.target.checked; renderCatalog();
+    };
+  });
+
   $('colorList').innerHTML = colors.map(c => `
     <div class="col${c.active ? '' : ' off'}" data-n="${esc(c.name)}">
       <span class="sw" style="background:${esc(c.hex)}"></span><span class="nm">${esc(c.name)}</span>
@@ -466,6 +522,16 @@ $('addItem').onclick = async () => {
   if (error) return flash('itemMsg', 'Couldn’t add that item.', false);
   items.push(data); $('newName').value = ''; $('newDesc').value = '';
   renderCatalog(); flash('itemMsg', 'Added. Tap its photo square to add a picture.');
+};
+$('addSection').onclick = async () => {
+  const name = $('newSecName').value.trim(); if (!name) return;
+  const emoji = $('newSecEmoji').value.trim() || null;
+  const ready_by = $('newSecDate').value || null;
+  const sort_order = (sections.reduce((m, x) => Math.max(m, x.sort_order), 0) || 0) + 10;
+  const { data, error } = await db.from('sections').insert({ name, emoji, ready_by, sort_order }).select().single();
+  if (error) return flash('secMsg', 'Couldn’t add that section (is the name already used?).', false);
+  sections.push(data); $('newSecName').value = ''; $('newSecEmoji').value = ''; $('newSecDate').value = '';
+  renderCatalog(); flash('secMsg', 'Section added. Move items into it with the dropdown under each item.');
 };
 $('addColor').onclick = async () => {
   const name = $('newColor').value.trim(); if (!name) return;

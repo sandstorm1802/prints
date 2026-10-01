@@ -89,6 +89,12 @@
   .p-ready { background: #3ccf7a; color: #062b14; }
   .p-picked_up, .p-cancelled { background: #1d1d22; color: #6f6b65; }
   .mrow.ready { margin: 0 -10px; padding: 12px 10px; border-radius: 12px; background: rgba(60,207,122,.1); border-top-color: transparent; }
+  .stabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .stab { appearance: none; font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer; white-space: nowrap; padding: 8px 14px; border-radius: 99px; border: 1.5px solid var(--line); background: var(--panel-2); color: var(--muted); }
+  .stab.on { border-color: var(--orange); background: rgba(255,122,26,.14); color: var(--text); }
+  .early { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,122,26,.1); color: var(--orange-soft); font-weight: 600; font-size: .9rem; line-height: 1.4; }
+  .early strong { color: var(--text); }
+  .mrow .due { color: var(--orange-soft); font-size: .78rem; font-weight: 600; margin-top: 2px; }
   .yay { margin: -2px 0 10px; padding: 10px 12px; border-radius: 12px; background: var(--orange); color: #1a1004; font-weight: 800; text-align: center; animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
   @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
   .done .num { animation: pop .6s cubic-bezier(.2,1.6,.4,1); }
@@ -128,7 +134,9 @@ if (SOURCE === 'kids') document.getElementById('kidsBadge').hidden = false;
 const app = document.getElementById('app');
 const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } }) : null;
 
-const S = { state: null, items: [], colors: [], code: '', item: null, color: null };
+const S = { state: null, items: [], colors: [], sections: [], tab: '', code: '', item: null, color: null };
+const dueText = d => d ? new Date(d + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+const sectionOf = it => it && it.section ? S.sections.find(x => x.name === it.section) : null;
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cube = '<svg viewBox="0 0 24 24" fill="none" stroke="#ff7a1a" stroke-width="1.6" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>';
@@ -203,7 +211,7 @@ async function loadMine() {
   box.innerHTML = `<div class="card"><h2>Your prints</h2>${keep.map(r => `
     <div class="mrow${r.status === 'ready' ? ' ready' : ''}">
       <div class="mn">#${String(r.pickup_no).padStart(3, '0')}</div>
-      <div class="mw">${esc(r.item_name)} &middot; ${esc(r.color)}</div>
+      <div class="mw">${esc(r.item_name)} &middot; ${esc(r.color)}${r.ready_by && (r.status === 'requested' || r.status === 'printing') ? `<div class="due">Ready by ${esc(dueText(r.ready_by))}</div>` : ''}</div>
       <span class="pill p-${esc(r.status)}">${STATUS_TEXT[r.status] || esc(r.status)}</span>
     </div>`).join('')}</div>`;
   box.hidden = false;
@@ -233,13 +241,18 @@ async function start() {
   app.innerHTML = '<div class="spinner" aria-label="Loading"></div>';
   loadMine();
   if (!db) return message('Hmm, something didn’t load', 'Check your connection and try again.', true);
-  const [st, it, co] = await Promise.all([
+  const [st, it, co, se] = await Promise.all([
     db.rpc('get_public_state'),
-    db.from('catalog_items').select('id,name,description,photo_url,sort_order').order('sort_order', { ascending: true }),
+    db.from('catalog_items').select('*').order('sort_order', { ascending: true }),
     db.from('colors').select('name,hex,sort_order').order('sort_order', { ascending: true }),
+    db.from('sections').select('name,emoji,ready_by,sort_order').order('sort_order', { ascending: true }),
   ]);
   if (st.error || it.error || co.error) return message('Hmm, something didn’t load', 'Check your connection and try again.', true);
-  S.state = st.data; S.items = it.data || []; S.colors = co.data || [];
+  S.state = st.data; S.colors = co.data || [];
+  S.sections = se.error ? [] : (se.data || []);
+  // items in hidden holiday sections aren't offered
+  S.items = (it.data || []).filter(i => !i.section || S.sections.some(x => x.name === i.section));
+  S.sections = S.sections.filter(x => S.items.some(i => i.section === x.name));
   if (!S.state.accepting) return message('Taking a break', S.state.closed_message);
   if (deviceCount() >= DEVICE_DAILY_MAX) return message('That’s a lot of prints!', 'You’ve made a few picks today. Come back another day for more.');
   if (!S.items.length || !S.colors.length) return message('Catalog coming soon', 'New prints are being added. Check back soon!');
@@ -263,11 +276,22 @@ function showCode(err) {
 }
 
 function showCatalog() {
+  if (S.tab && !S.sections.some(x => x.name === S.tab)) S.tab = '';
+  const everyday = S.items.filter(i => !i.section);
+  if (!S.tab && !everyday.length && S.sections.length) S.tab = S.sections[0].name;
+  const sec = S.sections.find(x => x.name === S.tab);
+  const shown = S.items.filter(i => (i.section || '') === S.tab);
+  const tabs = S.sections.length ? `<div class="stabs">
+      ${everyday.length ? `<button class="stab${S.tab ? '' : ' on'}" data-t="">Everyday</button>` : ''}
+      ${S.sections.map(x => `<button class="stab${S.tab === x.name ? ' on' : ''}" data-t="${esc(x.name)}">${esc(x.emoji || '')} ${esc(x.name)}</button>`).join('')}
+    </div>` : '';
   app.innerHTML = `
     <div class="card">
       <div class="step-title">Pick a free print</div>
       <p class="hint">Tap the one you want.</p>
-      <div class="grid">${S.items.map(it => `
+      ${tabs}
+      ${sec ? `<div class="early">${esc(sec.emoji || '')} Request early! ${sec.ready_by ? `These will be ready by <strong>${esc(dueText(sec.ready_by))}</strong>.` : 'Holiday prints are made ahead of time.'}</div>` : ''}
+      <div class="grid">${shown.map(it => `
         <button class="item${S.item && S.item.id === it.id ? ' sel' : ''}" data-id="${it.id}">
           ${thumb(it)}<div class="nm">${esc(it.name)}</div>${it.description ? `<div class="ds">${esc(it.description)}</div>` : '<div class="ds"></div>'}
         </button>`).join('')}
@@ -277,6 +301,7 @@ function showCatalog() {
     S.item = S.items.find(i => i.id === +b.dataset.id);
     showColor();
   });
+  app.querySelectorAll('.stab').forEach(b => b.onclick = () => { S.tab = b.dataset.t; showCatalog(); });
 }
 
 function showColor(err) {
@@ -326,6 +351,7 @@ function showDone(n, claim) {
       <div class="lbl">Your pickup number</div>
       <div class="num">#${num}</div>
       <div class="what">${esc(S.item.name)} &middot; ${esc(S.color)}</div>
+      ${sectionOf(S.item) && sectionOf(S.item).ready_by ? `<div class="early" style="margin-top:14px">${esc(sectionOf(S.item).emoji || '')} Ready by ${esc(dueText(sectionOf(S.item).ready_by))}</div>` : ''}
       <p class="hint note">${esc(S.state.pickup_note)}</p>
       <div class="shot">This phone will remember it. Open this page any time to see when it&rsquo;s ready.</div>
       ${claim ? '<button class="btn ghost" id="save">Save a link to check from another device</button>' : ''}

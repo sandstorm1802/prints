@@ -196,7 +196,7 @@ db.auth.getSession().then(({ data }) => boot(data.session));
 // ---------- list ----------
 async function load() {
   const { data, error } = await db.from('requests')
-    .select('id,pickup_no,item_name,color,status,created_at,updated_at')
+    .select('*')
     .order('updated_at', { ascending: true }).limit(500);
   if (error) { $('list').innerHTML = '<div class="empty">Couldn’t load. Pull down to refresh.</div>'; return; }
   requests = data || [];
@@ -219,7 +219,7 @@ function card(r) {
   return `
     <div class="row">
       <div class="no sm">${pad(r.pickup_no)}</div>
-      <div class="info">${what}<div class="when">${esc(since)}</div></div>
+      <div class="info">${what}<div class="when">${esc(since)}${r.ready_by && (r.status === 'requested' || r.status === 'printing') ? ` &middot; <span style="color:#ffa25c;font-weight:600">due ${esc(new Date(r.ready_by + 'T12:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span>` : ''}</div></div>
       <span class="pill ${cls}">${label}</span>
     </div>`;
 }
