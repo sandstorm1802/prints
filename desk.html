@@ -40,6 +40,17 @@
   .btn.orange { background: var(--orange); color: #1a1004; }
   .btn:disabled { opacity: .45; cursor: default; }
   .empty { text-align: center; color: var(--muted); padding: 50px 10px; }
+  .empty.small { padding: 22px 10px; }
+  .row { display: flex; align-items: center; gap: 14px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .row .no.sm { font-weight: 800; font-size: 1.35rem; color: var(--muted); min-width: 64px; }
+  .row .info { flex: 1; min-width: 0; }
+  .row .what { font-weight: 600; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+  .row .when { color: var(--muted); font-size: .8rem; }
+  .pill { font-size: .78rem; font-weight: 700; padding: 5px 11px; border-radius: 99px; white-space: nowrap; }
+  .p-wait { background: #26262c; color: var(--muted); }
+  .p-print { background: rgba(91,157,255,.15); color: #7fb2ff; }
+  .p-ready { background: var(--green); color: #062b14; }
+  .p-done { background: #1d1d22; color: #6f6b65; }
   .empty .big { font-size: 2.4rem; margin-bottom: 6px; }
   .foot { position: fixed; left: 0; right: 0; bottom: 0; background: rgba(13,13,15,.94); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); text-align: center; color: var(--muted); font-size: .92rem; }
   .foot strong { color: var(--text); }
@@ -103,7 +114,6 @@
     </div>
   </div>
   <div class="wrap">
-    <h1>Ready for pickup</h1>
     <div id="list"><div class="spinner"></div></div>
   </div>
   <div class="foot" id="foot"></div>
@@ -186,35 +196,62 @@ db.auth.getSession().then(({ data }) => boot(data.session));
 // ---------- list ----------
 async function load() {
   const { data, error } = await db.from('requests')
-    .select('id,pickup_no,item_name,color,status,updated_at')
+    .select('id,pickup_no,item_name,color,status,created_at,updated_at')
     .order('updated_at', { ascending: true }).limit(500);
   if (error) { $('list').innerHTML = '<div class="empty">Couldn’t load. Pull down to refresh.</div>'; return; }
   requests = data || [];
   render();
 }
-function render() {
-  const q = $('find').value.replace(/\D/g, '');
-  let ready = requests.filter(r => r.status === 'ready').sort((a, b) => a.pickup_no - b.pickup_no);
-  if (q) ready = ready.filter(r => String(r.pickup_no).padStart(3, '0').includes(q))
-    .sort((a, b) => (b.pickup_no === +q) - (a.pickup_no === +q));
-  const coming = requests.filter(r => r.status === 'requested' || r.status === 'printing').length;
-  $('foot').innerHTML = coming ? `<strong>${coming}</strong> more being printed` : 'Nothing else in the works right now';
-  if (!ready.length) {
-    $('list').innerHTML = q
-      ? `<div class="empty"><div class="big">&#128269;</div>No ready print with number #${esc(q.padStart(3, '0'))}.<br>It may still be printing.</div>`
-      : '<div class="empty"><div class="big">&#128230;</div>Nothing waiting for pickup right now.</div>';
-    return;
-  }
-  $('list').innerHTML = ready.map(r => `
+const STATUS = {
+  requested: ['Waiting to print', 'p-wait'], printing: ['Printing now', 'p-print'],
+  ready: ['Ready', 'p-ready'], picked_up: ['Picked up', 'p-done'], cancelled: ['Cancelled', 'p-done'],
+};
+function card(r) {
+  const what = `<div class="what"><span class="sw" style="background:${esc(colors[r.color] || '#888')}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>`;
+  if (r.status === 'ready') return `
     <div class="card" data-id="${r.id}">
       <div class="no">${pad(r.pickup_no)}</div>
-      <div class="info">
-        <div class="what"><span class="sw" style="background:${esc(colors[r.color] || '#888')}"></span><span>${esc(r.item_name)} &middot; ${esc(r.color)}</span></div>
-        <div class="when">Ready ${ago(r.updated_at)}</div>
-      </div>
+      <div class="info">${what}<div class="when">Ready ${ago(r.updated_at)}</div></div>
       <button class="btn">Picked up</button>
-    </div>`).join('');
-  $('list').querySelectorAll('.card').forEach(card => card.querySelector('.btn').onclick = () => pickUp(+card.dataset.id, card));
+    </div>`;
+  const [label, cls] = STATUS[r.status] || [r.status, 'p-done'];
+  const since = { requested: 'requested ' + ago(r.created_at || r.updated_at), printing: 'started ' + ago(r.updated_at) }[r.status] || ago(r.updated_at);
+  return `
+    <div class="row">
+      <div class="no sm">${pad(r.pickup_no)}</div>
+      <div class="info">${what}<div class="when">${esc(since)}</div></div>
+      <span class="pill ${cls}">${label}</span>
+    </div>`;
+}
+function wire() {
+  $('list').querySelectorAll('.card[data-id]').forEach(c => c.querySelector('.btn').onclick = () => pickUp(+c.dataset.id, c));
+}
+function render() {
+  const q = $('find').value.replace(/\D/g, '');
+  const ready = requests.filter(r => r.status === 'ready').sort((a, b) => a.pickup_no - b.pickup_no);
+  const printing = requests.filter(r => r.status === 'printing');
+  const waiting = requests.filter(r => r.status === 'requested');
+  const parts = [];
+  if (ready.length) parts.push(`<strong>${ready.length}</strong> ready`);
+  if (printing.length) parts.push(`<strong>${printing.length}</strong> printing`);
+  if (waiting.length) parts.push(`<strong>${waiting.length}</strong> waiting`);
+  $('foot').innerHTML = parts.length ? parts.join(' &middot; ') : 'All caught up';
+
+  if (q) {
+    const hits = requests.filter(r => String(r.pickup_no).padStart(3, '0').includes(q))
+      .sort((a, b) => (b.pickup_no === +q) - (a.pickup_no === +q) || new Date(b.updated_at) - new Date(a.updated_at))
+      .slice(0, 20);
+    $('list').innerHTML = hits.length
+      ? `<h1>Matching #${esc(q.padStart(3, '0'))}</h1>${hits.map(card).join('')}`
+      : `<div class="empty"><div class="big">&#128269;</div>No print with number #${esc(q.padStart(3, '0'))}.</div>`;
+    wire(); return;
+  }
+  const working = [...printing, ...waiting.sort((a, b) => new Date(a.created_at || a.updated_at) - new Date(b.created_at || b.updated_at))];
+  $('list').innerHTML =
+    '<h1>Ready for pickup</h1>' +
+    (ready.length ? ready.map(card).join('') : '<div class="empty small"><div class="big">&#128230;</div>Nothing waiting for pickup right now.</div>') +
+    (working.length ? '<h1>In the works</h1>' + working.map(card).join('') : '');
+  wire();
 }
 $('find').oninput = render;
 
