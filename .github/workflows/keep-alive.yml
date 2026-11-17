@@ -1,11 +1,12 @@
 # Keeps the free Supabase project from pausing after 7 days of no activity.
-# Runs every 3 days and asks the database for the request page's status
+# Runs twice a day, 3 pings each time, and asks the database for the request page's status
 # (the same read-only lookup a visitor's phone makes). No data is changed.
 name: Keep Supabase awake
 
 on:
   schedule:
-    - cron: "17 13 */3 * *"   # every 3 days, ~9:17 AM Eastern
+    - cron: "17 13 * * *"     # daily, ~8:17 AM Eastern
+    - cron: "47 1 * * *"      # daily, ~8:47 PM Eastern
   workflow_dispatch:          # "Run workflow" button for a manual ping
 
 jobs:
@@ -17,6 +18,7 @@ jobs:
           SUPABASE_URL: https://xmsfnoloijgvtlfvzmyb.supabase.co
           SUPABASE_KEY: sb_publishable_-BiThUOZZrxtoWV8T4eb6Q_1mOnfGWp
         run: |
+          for i in 1 2 3; do
           status=$(curl -sS -o response.json -w "%{http_code}" \
             -X POST "$SUPABASE_URL/rest/v1/rpc/get_public_state" \
             -H "apikey: $SUPABASE_KEY" \
@@ -28,3 +30,5 @@ jobs:
             echo "::error::Supabase did not answer. The project may be paused; unpause it in the Supabase dashboard."
             exit 1
           fi
+          sleep 20
+          done
